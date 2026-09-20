@@ -41,6 +41,23 @@ def test_google_provider_translates_successfully() -> None:
     assert calls
 
 
+def test_google_provider_batches_requests() -> None:
+    calls = 0
+
+    def opener(http_request: object, timeout: float) -> FakeResponse:
+        nonlocal calls
+        calls += 1
+        return FakeResponse({
+            "data": {"translations": [{"translatedText": "एक"}, {"translatedText": "दो"}]}
+        })
+
+    provider = GoogleCloudTranslationProvider(api_key="secret", opener=opener, max_batch_size=2)
+    results = provider.translate_many([request_data("one"), request_data("two")])
+
+    assert calls == 1
+    assert [item.translated_text for item in results] == ["एक", "दो"]
+
+
 def test_google_provider_rejects_unsupported_pair() -> None:
     provider = GoogleCloudTranslationProvider(api_key="secret")
     request_value = TranslationRequest(Language.HINDI, Language.TAMIL, "नमस्ते")

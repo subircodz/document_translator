@@ -1,10 +1,11 @@
 from docx import Document
 
+from document_translator.document.model import DocumentModel, ParagraphModel
 from document_translator.document.reader import read_docx
 from document_translator.document.writer import write_docx
 
 
-def test_docx_round_trip_preserves_paragraphs_runs_and_tables(tmp_path) -> None:
+def test_docx_round_trip_preserves_order_structure_runs_and_tables(tmp_path) -> None:
     source_path = tmp_path / "source.docx"
     output_path = tmp_path / "output.docx"
 
@@ -24,25 +25,28 @@ def test_docx_round_trip_preserves_paragraphs_runs_and_tables(tmp_path) -> None:
     table.cell(1, 0).text = "Subir"
     table.cell(1, 1).text = "English"
 
+    source.add_paragraph("After table")
     source.save(source_path)
 
     model = read_docx(source_path)
     write_docx(model, output_path)
-
     result = read_docx(output_path)
 
-    assert [p.text for p in result.paragraphs] == [
-        "English Document",
-        "Hello world",
+    assert len(result.blocks) == 4
+    assert isinstance(result.blocks[0], ParagraphModel)
+    assert result.blocks[0].text == "English Document"
+    assert result.blocks[0].style == "Heading 1"
+    assert result.blocks[1].runs[0].bold is True
+    assert result.blocks[1].runs[1].italic is True
+
+    table_model = result.blocks[2]
+    assert [[p.text for p in cell] for row in table_model.rows for cell in row] == [
+        ["Name"],
+        ["Language"],
+        ["Subir"],
+        ["English"],
     ]
-    assert result.paragraphs[0].style == "Heading 1"
-    assert result.paragraphs[1].runs[0].bold is True
-    assert result.paragraphs[1].runs[1].italic is True
-    assert len(result.tables) == 1
-    assert [[p.text for p in row] for row in result.tables[0].rows] == [
-        ["Name", "Language"],
-        ["Subir", "English"],
-    ]
+    assert result.blocks[3].text == "After table"
 
 
 def test_docx_unicode_round_trip(tmp_path) -> None:
@@ -61,7 +65,7 @@ def test_docx_unicode_round_trip(tmp_path) -> None:
     write_docx(read_docx(source_path), output_path)
     result = read_docx(output_path)
 
-    assert [p.text for p in result.paragraphs] == [
+    assert [block.text for block in result.blocks if isinstance(block, ParagraphModel)] == [
         "Hindi नमस्ते",
         "Bengali নমস্কার",
         "Kannada ಕನ್ನಡ",
@@ -69,3 +73,14 @@ def test_docx_unicode_round_trip(tmp_path) -> None:
         "Tamil தமிழ்",
         "Malayalam മലയാളം",
     ]
+
+
+def test_writer_accepts_domain_model(tmp_path) -> None:
+    output_path = tmp_path / "model.docx"
+    model = DocumentModel(
+        blocks=(ParagraphModel(text="Hello", style="Normal", runs=()),)
+    )
+
+    write_docx(model, output_path)
+
+    assert read_docx(output_path).blocks[0].text == "Hello"

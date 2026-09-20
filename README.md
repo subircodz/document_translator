@@ -594,6 +594,6 @@ It is not a distributed SaaS deployment.
 
 ## License
 
-No open-source license has been declared.
+This project is licensed under the **Apache License 2.0**.
 
-Until a license is added, treat this repository as private project code and do not redistribute it.
+See the [`LICENSE`](LICENSE) file for the complete license text.

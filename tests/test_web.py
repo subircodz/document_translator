@@ -78,7 +78,7 @@ def test_upload_translates_and_exposes_report(monkeypatch) -> None:
     response = client.post(
         "/translate",
         files={"file": ("report.docx", make_docx(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
-        data=[("targets", "hi"), ("targets", "ta")],
+        data={"targets": ["hi", "ta"]},
     )
     assert response.status_code == 200
     assert "/jobs/" in response.text

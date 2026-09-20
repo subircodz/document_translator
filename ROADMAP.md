@@ -8,7 +8,7 @@
 - [x] Add initial tests
 - [x] Add Ruff configuration
 - [x] Add GitHub Actions CI
-- [ ] DOCX reader/writer
+- [x] DOCX reader/writer
 
 **Exit criteria:** foundation tests and CI are green; core contracts are stable.
 

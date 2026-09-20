@@ -14,6 +14,7 @@ class ConfigurationError(RuntimeError):
 class Settings:
     google_translate_api_key: str
     max_upload_bytes: int = 10 * 1024 * 1024
+    max_archive_uncompressed_bytes: int = 100 * 1024 * 1024
     job_ttl_seconds: int = 3600
 
     @classmethod
@@ -23,8 +24,15 @@ class Settings:
             raise ConfigurationError("GOOGLE_TRANSLATE_API_KEY is not configured.")
         return cls(
             google_translate_api_key=api_key,
-            max_upload_bytes=_positive_int("DOCUMENT_TRANSLATOR_MAX_UPLOAD_BYTES", 10 * 1024 * 1024),
-            job_ttl_seconds=_positive_int("DOCUMENT_TRANSLATOR_JOB_TTL_SECONDS", 3600),
+            max_upload_bytes=_positive_int(
+                "DOCUMENT_TRANSLATOR_MAX_UPLOAD_BYTES", 10 * 1024 * 1024
+            ),
+            max_archive_uncompressed_bytes=_positive_int(
+                "DOCUMENT_TRANSLATOR_MAX_ARCHIVE_UNCOMPRESSED_BYTES", 100 * 1024 * 1024
+            ),
+            job_ttl_seconds=_positive_int(
+                "DOCUMENT_TRANSLATOR_JOB_TTL_SECONDS", 3600
+            ),
         )
 
 

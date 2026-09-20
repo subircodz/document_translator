@@ -1,10 +1,12 @@
 import io
+import time
+from pathlib import Path
 
 from docx import Document
 from fastapi.testclient import TestClient
 
 from document_translator.models import Language, TranslationResult
-from document_translator.web.app import create_app
+from document_translator.web.app import JobStore, TranslationJob, create_app
 
 
 class FakeProvider:
@@ -94,3 +96,37 @@ def test_upload_translates_and_exposes_report(monkeypatch) -> None:
     assert document_response.status_code == 200
     assert report_response.status_code == 200
     assert "PASS" in report_response.text
+
+
+def test_upload_rejects_invalid_docx(monkeypatch) -> None:
+    monkeypatch.setenv("GOOGLE_TRANSLATE_API_KEY", "test")
+    response = TestClient(create_app(fake_factory)).post(
+        "/translate",
+        files={"file": ("broken.docx", b"not-a-zip", "application/octet-stream")},
+        data={"targets": "hi"},
+    )
+    assert response.status_code == 400
+    assert "valid DOCX" in response.json()["detail"]
+
+
+def test_expired_job_cleans_up(tmp_path) -> None:
+    import tempfile
+
+    temp_dir = tempfile.TemporaryDirectory(prefix="document-translator-test-")
+    work_dir = tmp_path / "job"
+    work_dir.mkdir()
+    marker = work_dir / "marker.txt"
+    marker.write_text("x", encoding="utf-8")
+    job = TranslationJob(
+        "expired",
+        "report.docx",
+        (Language.HINDI,),
+        work_dir,
+        temp_dir,
+        ttl_seconds=1,
+        created_at=time.time() - 2,
+    )
+    store = JobStore()
+    store.add(job)
+    assert store.get("expired") is None
+    assert not Path(temp_dir.name).exists()

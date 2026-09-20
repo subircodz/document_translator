@@ -6,10 +6,10 @@
 - [x] Structured JSON logging
 - [x] Configurable upload limit
 - [x] Job TTL cleanup
-- [ ] Security review
-- [ ] Dependency review
-- [ ] Performance tests
-- [ ] Release workflow
+- [x] Security review
+- [x] Dependency review
+- [x] Performance tests
+- [x] Release workflow
 
 ## Completed Phase 6 — Web Application
 

@@ -7,31 +7,33 @@ from docx.table import _Cell
 from docx.text.paragraph import Paragraph
 
 from document_translator.document.model import (
-    DocumentBlock,
     DocumentModel,
     ParagraphModel,
     TableModel,
 )
 
 
-def _write_paragraph(container, paragraph_model: ParagraphModel) -> Paragraph:
-    paragraph = container.add_paragraph(style=paragraph_model.style)
+def _write_runs(paragraph: Paragraph, paragraph_model: ParagraphModel) -> None:
     for run_model in paragraph_model.runs:
         run = paragraph.add_run(run_model.text)
         run.bold = run_model.bold
         run.italic = run_model.italic
         run.underline = run_model.underline
+
+
+def _write_paragraph(container, paragraph_model: ParagraphModel) -> Paragraph:
+    paragraph = container.add_paragraph(style=paragraph_model.style)
+    _write_runs(paragraph, paragraph_model)
     return paragraph
 
 
-def _write_cell(cell: _Cell, paragraph_model: ParagraphModel) -> None:
+def _write_cell(cell: _Cell, paragraphs: tuple[ParagraphModel, ...]) -> None:
     cell.text = ""
-    paragraph = cell.paragraphs[0]
-    for run_model in paragraph_model.runs:
-        run = paragraph.add_run(run_model.text)
-        run.bold = run_model.bold
-        run.italic = run_model.italic
-        run.underline = run_model.underline
+    first = True
+    for paragraph_model in paragraphs:
+        paragraph = cell.paragraphs[0] if first else cell.add_paragraph()
+        first = False
+        _write_runs(paragraph, paragraph_model)
 
 
 def _write_table(document: Document, table_model: TableModel) -> None:
@@ -41,9 +43,10 @@ def _write_table(document: Document, table_model: TableModel) -> None:
 
     for row_index, row_model in enumerate(table_model.rows):
         for column_index, cell_paragraphs in enumerate(row_model):
-            cell = table.cell(row_index, column_index)
-            for paragraph_model in cell_paragraphs:
-                _write_cell(cell, paragraph_model)
+            _write_cell(
+                table.cell(row_index, column_index),
+                cell_paragraphs,
+            )
 
 
 def write_docx(document_model: DocumentModel, path: str | Path) -> None:

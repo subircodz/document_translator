@@ -6,7 +6,7 @@
 - [x] Input/output handling
 - [x] Language selection
 - [x] Single-document translation orchestration
-- [ ] Batch translation
+- [x] Batch translation
 - [x] User-friendly errors
 
 ## Completed Phase 4

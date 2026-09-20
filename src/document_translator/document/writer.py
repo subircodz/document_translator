@@ -23,7 +23,10 @@ def _write_runs(paragraph: Paragraph, paragraph_model: ParagraphModel) -> None:
 
 def _write_paragraph(container, paragraph_model: ParagraphModel) -> Paragraph:
     paragraph = container.add_paragraph(style=paragraph_model.style)
-    _write_runs(paragraph, paragraph_model)
+    if paragraph_model.runs:
+        _write_runs(paragraph, paragraph_model)
+    elif paragraph_model.text:
+        paragraph.add_run(paragraph_model.text)
     return paragraph
 
 

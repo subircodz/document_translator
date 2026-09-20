@@ -14,16 +14,45 @@ class TranslationService:
     provider: TranslationProvider
 
     def translate(self, request: TranslationRequest) -> TranslationResult:
-        protected = protect(request.text)
-        protected_request = TranslationRequest(
-            source_language=request.source_language,
-            target_language=request.target_language,
-            text=protected.text,
-        )
-        result = self.provider.translate(protected_request)
-        return TranslationResult(
-            source_language=result.source_language,
-            target_language=result.target_language,
-            source_text=request.text,
-            translated_text=restore(result.translated_text, protected.tokens),
-        )
+        return self.translate_many([request])[0]
+
+    def translate_many(
+        self, requests: list[TranslationRequest]
+    ) -> list[TranslationResult]:
+        """Translate requests while protecting non-translatable tokens."""
+        if not requests:
+            return []
+
+        protected_requests: list[TranslationRequest] = []
+        protections = []
+        for request in requests:
+            protected = protect(request.text)
+            protections.append(protected)
+            protected_requests.append(
+                TranslationRequest(
+                    source_language=request.source_language,
+                    target_language=request.target_language,
+                    text=protected.text,
+                )
+            )
+
+        translate_many = getattr(self.provider, "translate_many", None)
+        if callable(translate_many):
+            results = translate_many(protected_requests)
+        else:
+            results = [self.provider.translate(request) for request in protected_requests]
+
+        if len(results) != len(requests):
+            raise RuntimeError("Translation provider returned an incomplete batch.")
+
+        return [
+            TranslationResult(
+                source_language=request.source_language,
+                target_language=request.target_language,
+                source_text=request.text,
+                translated_text=restore(result.translated_text, protected.tokens),
+            )
+            for request, result, protected in zip(
+                requests, results, protections, strict=True
+            )
+        ]

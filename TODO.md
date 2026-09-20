@@ -1,6 +1,6 @@
 # TODO
 
-## Active phase: Phase 1 — Engineering Foundation
+## Active phase: Phase 2 — DOCX Engine
 
 - [x] Language registry
 - [x] Translation provider protocol
@@ -9,7 +9,7 @@
 - [x] Unit tests
 - [x] Ruff configuration
 - [x] CI workflow
-- [ ] DOCX reader/writer
+- [x] DOCX reader/writer
 
 ## Engineering rules
 

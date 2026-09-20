@@ -1,11 +1,16 @@
 # TODO
 
-## Active phase: Phase 3 — Translation Engine
+## Active phase: Phase 4 — Validation & Reporting
 
 - [x] Language registry
 - [x] Translation provider protocol
 - [x] Translation result/error models
 - [x] Protected-token model and basic protection
+- [x] Google Cloud Translation adapter
+- [x] Bounded translation batching
+- [x] Transient-failure retries
+- [x] Provider integration tests with mocks
+- [x] Token protection integrated with translation service
 - [x] Unit tests
 - [x] Ruff configuration
 - [x] CI workflow

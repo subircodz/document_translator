@@ -6,7 +6,7 @@ from pathlib import Path
 
 from document_translator.document.reader import read_docx
 from document_translator.document.writer import write_docx
-from document_translator.models import Language, TARGET_LANGUAGES
+from document_translator.models import TARGET_LANGUAGES, Language
 from document_translator.translation.document import translate_document
 from document_translator.translation.google_cloud import GoogleCloudTranslationProvider
 from document_translator.translation.service import TranslationService

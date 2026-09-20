@@ -57,9 +57,9 @@
 **Phase 6 implementation note:** jobs are process-local and use temporary storage. Durable job storage, stronger limits, authentication, and production deployment controls remain Phase 7 work.
 
 ## Phase 7 — Production Hardening
-- [ ] Configuration and secrets handling
-- [ ] Structured logging
-- [ ] File/type/size limits
+- [x] Configuration and secrets handling
+- [x] Structured logging
+- [x] File/type/size limits
 - [ ] Security review
 - [ ] Dependency review
 - [ ] Performance tests

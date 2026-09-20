@@ -10,18 +10,24 @@ from document_translator.models import TARGET_LANGUAGES, Language
 from document_translator.translation.document import translate_document
 from document_translator.translation.google_cloud import GoogleCloudTranslationProvider
 from document_translator.translation.service import TranslationService
+from document_translator.validation.renderer import render_document_report
+from document_translator.validation.validator import validate_document
 
 
 def _language(value: str) -> Language:
     try:
         language = Language(value.lower())
     except ValueError as exc:
-        choices = ", ".join(lang.value for lang in sorted(TARGET_LANGUAGES, key=lambda item: item.value))
+        choices = ", ".join(
+            lang.value for lang in sorted(TARGET_LANGUAGES, key=lambda item: item.value)
+        )
         raise argparse.ArgumentTypeError(
             f"Unsupported target language '{value}'. Choose from: {choices}."
         ) from exc
     if language not in TARGET_LANGUAGES:
-        raise argparse.ArgumentTypeError("Target language must be one of the six Indian languages.")
+        raise argparse.ArgumentTypeError(
+            "Target language must be one of the six Indian languages."
+        )
     return language
 
 
@@ -33,7 +39,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("input", type=Path, help="Input DOCX file.")
     parser.add_argument("-o", "--output", type=Path, help="Output DOCX file.")
     parser.add_argument(
-        "-t", "--target", required=True, type=_language,
+        "-r",
+        "--report",
+        type=Path,
+        help="Validation report path. Defaults to <output>.report.txt.",
+    )
+    parser.add_argument(
+        "-t",
+        "--target",
+        required=True,
+        type=_language,
         help="Target language: hi, bn, kn, te, ta, or ml.",
     )
     return parser
@@ -41,6 +56,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _default_output(input_path: Path, target: Language) -> Path:
     return input_path.with_name(f"{input_path.stem}.{target.value}.docx")
+
+
+def _default_report(output_path: Path) -> Path:
+    return output_path.with_suffix(".report.txt")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -51,9 +70,14 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Input must be a .docx file.")
     if not args.input.is_file():
         parser.error(f"Input file does not exist: {args.input}")
+
     output = args.output or _default_output(args.input, args.target)
+    report_path = args.report or _default_report(output)
     if output.resolve() == args.input.resolve():
         parser.error("Output file must differ from input file.")
+    if report_path.resolve() == args.input.resolve():
+        parser.error("Report file must differ from input file.")
+
     api_key = os.getenv("GOOGLE_TRANSLATE_API_KEY")
     if not api_key:
         parser.error("GOOGLE_TRANSLATE_API_KEY is not configured.")
@@ -63,12 +87,22 @@ def main(argv: list[str] | None = None) -> int:
         service = TranslationService(GoogleCloudTranslationProvider(api_key=api_key))
         translated = translate_document(source, service, args.target)
         write_docx(translated, output)
+        reloaded = read_docx(output)
+        report = validate_document(source, reloaded, Language.ENGLISH, args.target)
+        report_path.write_text(render_document_report(report), encoding="utf-8")
     except OSError as exc:
         parser.error(f"Document file error: {exc}")
     except RuntimeError as exc:
         parser.error(f"Translation failed: {exc}")
 
     print(f"Translated document written to: {output}")
+    print(f"Validation report written to: {report_path}")
+
+    if report.failure_count:
+        parser.error(
+            f"Validation failed. Review the report: {report_path}"
+        )
+
     return 0
 
 

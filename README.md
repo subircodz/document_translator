@@ -3,7 +3,7 @@
 A Python application for translating English documents into Hindi, Bengali, Kannada, Telugu, Tamil, and Malayalam while preserving document structure and protecting non-translatable content.
 
 ## Current phase
-Phase 3 adds the translation engine foundation: a Google Cloud Translation adapter, bounded batching, transient-failure retries, provider errors, and token protection around provider calls.
+Phase 6 adds a FastAPI web application with DOCX upload, multi-language selection, background job progress, translated-document downloads, and validation-report downloads.
 
 The current document pipeline is:
 
@@ -26,3 +26,21 @@ Requires Python 3.11+.
     python -m pip install -e ".[dev]"
     pytest
     ruff check .
+
+## Run the web application
+
+Install development dependencies:
+
+    python -m pip install -e ".[dev]"
+
+Set the Google Cloud API key:
+
+    export GOOGLE_TRANSLATE_API_KEY="your-key"
+
+Start the application:
+
+    uvicorn document_translator.web.app:app --reload
+
+Open http://127.0.0.1:8000 in a browser.
+
+The Phase 6 web layer is an MVP: jobs and temporary files are process-local. Authentication, durable job storage, stricter resource controls, and production deployment are planned for Phase 7.

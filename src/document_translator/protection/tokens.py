@@ -32,3 +32,7 @@ def restore(text: str, tokens: dict[str, str]) -> str:
     for placeholder, original in tokens.items():
         text = text.replace(placeholder, original)
     return text
+
+
+# Backward-compatible name used by performance and integration callers.
+protect_text = protect

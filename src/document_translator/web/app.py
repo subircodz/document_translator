@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import io
 import logging
 import threading
 import time
@@ -110,7 +111,7 @@ def _safe_source_name(filename: str | None) -> str:
 def _validate_docx_archive(data: bytes, max_uncompressed_bytes: int) -> None:
     """Reject malformed, oversized, or suspicious DOCX ZIP payloads before parsing."""
     try:
-        with zipfile.ZipFile(__import__("io").BytesIO(data)) as archive:
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
             if len(archive.infolist()) > _MAX_DOCX_ENTRIES:
                 raise HTTPException(status_code=400, detail="DOCX contains too many archive entries.")
             if not archive.testzip() is None:

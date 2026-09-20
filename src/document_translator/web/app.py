@@ -154,7 +154,7 @@ def create_app(provider_factory=None, settings: Settings | None = None) -> FastA
             settings = Settings.from_environment()
         except ConfigurationError:
             settings = None
-    app = FastAPI(title="Document Translator", version="0.3.0")
+    app = FastAPI(title="Document Translator", version="0.4.0")
 
     @app.get("/", response_class=HTMLResponse)
     def home() -> str:

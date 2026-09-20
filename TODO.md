@@ -1,6 +1,6 @@
 # TODO
 
-## Active phase: Phase 2 — DOCX Engine
+## Active phase: Phase 3 — Translation Engine
 
 - [x] Language registry
 - [x] Translation provider protocol

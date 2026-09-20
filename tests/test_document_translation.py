@@ -48,3 +48,30 @@ def test_translate_document_preserves_supported_structure() -> None:
     assert translated.blocks[0].runs[0].bold is True
     table = translated.blocks[1]
     assert table.rows[0][0][0].text == "अनुवाद: Name"
+
+
+def test_translate_document_batches_non_empty_paragraphs() -> None:
+    class Provider:
+        def supports(self, source: Language, target: Language) -> bool:
+            return True
+
+        def translate(self, request: TranslationRequest) -> TranslationResult:
+            raise AssertionError("single path should not be used")
+
+        def translate_many(self, requests: list[TranslationRequest]) -> list[TranslationResult]:
+            return [
+                TranslationResult(r.source_language, r.target_language, r.text, f"अनुवाद: {r.text}")
+                for r in requests
+            ]
+
+    document = DocumentModel(
+        blocks=(
+            ParagraphModel("One", "Normal", (RunModel("One"),)),
+            ParagraphModel("", "Normal", ()),
+            ParagraphModel("Two", "Normal", (RunModel("Two"),)),
+        )
+    )
+    translated = translate_document(document, TranslationService(Provider()), Language.HINDI)
+    assert translated.blocks[0].text == "अनुवाद: One"
+    assert translated.blocks[1].text == ""
+    assert translated.blocks[2].text == "अनुवाद: Two"

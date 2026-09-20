@@ -4,13 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "document-translator"
-version = "0.1.0"
+version = "0.2.0"
 description = "Structure-aware English document translation into Indian languages."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "python-docx>=1.1",
 ]
+
+[project.scripts]
+document-translator = "document_translator.cli:main"
 
 [project.optional-dependencies]
 dev = [

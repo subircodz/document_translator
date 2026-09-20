@@ -91,7 +91,7 @@ def _run_job(job: TranslationJob, source_path: Path, api_key: str) -> None:
     job.status = "running"
     try:
         source = read_docx(source_path)
-        service = TranslationService(GoogleCloudTranslationProvider(api_key=api_key))
+        service = TranslationService(provider_factory(api_key))
         total = len(job.targets)
         for index, target in enumerate(job.targets, start=1):
             try:
@@ -133,7 +133,10 @@ def _job_payload(job: TranslationJob) -> dict[str, object]:
     }
 
 
-def create_app() -> FastAPI:
+def create_app(provider_factory=None) -> FastAPI:
+    """Create the web application with an injectable translation provider factory."""
+    if provider_factory is None:
+        provider_factory = lambda api_key: GoogleCloudTranslationProvider(api_key=api_key)
     app = FastAPI(title="Document Translator", version="0.3.0")
 
     @app.get("/", response_class=HTMLResponse)

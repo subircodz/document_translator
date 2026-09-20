@@ -87,7 +87,7 @@ def _safe_source_name(filename: str | None) -> str:
     return name
 
 
-def _run_job(job: TranslationJob, source_path: Path, api_key: str) -> None:
+def _run_job(job: TranslationJob, source_path: Path, api_key: str, provider_factory) -> None:
     job.status = "running"
     try:
         source = read_docx(source_path)
@@ -156,8 +156,8 @@ def create_app(provider_factory=None) -> FastAPI:
     @app.post("/translate", response_class=HTMLResponse)
     async def translate_form(
         background_tasks: BackgroundTasks,
-        file: UploadFile = File(...),
-        targets: list[str] = Form(...),
+        file: UploadFile = File(...),  # noqa: B008
+        targets: list[str] = Form(...),  # noqa: B008
     ) -> str:
         job = await _create_job(file, targets, background_tasks)
         return f'<meta http-equiv="refresh" content="0; url=/jobs/{job.job_id}">'
@@ -212,7 +212,7 @@ def create_app(provider_factory=None) -> FastAPI:
         job.outputs = {target.value: TargetOutput(target) for target in targets_tuple}
         job._tempdir = work_dir_obj  # type: ignore[attr-defined]
         STORE.add(job)
-        background_tasks.add_task(_run_job, job, source_path, api_key)
+        background_tasks.add_task(_run_job, job, source_path, api_key, provider_factory)
         return job
 
     return app

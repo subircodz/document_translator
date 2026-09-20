@@ -1,6 +1,7 @@
 """Domain models for supported DOCX structures."""
 
 from dataclasses import dataclass
+from typing import TypeAlias
 
 
 @dataclass(frozen=True)
@@ -20,10 +21,12 @@ class ParagraphModel:
 
 @dataclass(frozen=True)
 class TableModel:
-    rows: tuple[tuple[ParagraphModel, ...], ...]
+    rows: tuple[tuple[tuple[ParagraphModel, ...], ...], ...]
+
+
+DocumentBlock: TypeAlias = ParagraphModel | TableModel
 
 
 @dataclass(frozen=True)
 class DocumentModel:
-    paragraphs: tuple[ParagraphModel, ...]
-    tables: tuple[TableModel, ...]
+    blocks: tuple[DocumentBlock, ...]

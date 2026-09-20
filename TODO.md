@@ -3,10 +3,11 @@
 ## Active phase: Phase 5 — Application Interface
 
 - [x] CLI foundation
-- [ ] Input/output handling
-- [ ] Language selection
+- [x] Input/output handling
+- [x] Language selection
+- [x] Single-document translation orchestration
 - [ ] Batch translation
-- [ ] User-friendly errors
+- [x] User-friendly errors
 
 ## Completed Phase 4
 

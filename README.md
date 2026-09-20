@@ -3,7 +3,7 @@
 A Python application for translating English documents into Hindi, Bengali, Kannada, Telugu, Tamil, and Malayalam while preserving document structure and protecting non-translatable content.
 
 ## Current phase
-Phase 7 begins production hardening of the FastAPI web application with DOCX upload, multi-language selection, background job progress, translated-document downloads, and validation-report downloads.
+Phase 7 completes production hardening of the FastAPI web application with DOCX upload, multi-language selection, background job progress, translated-document downloads, and validation-report downloads.
 
 The current document pipeline is:
 

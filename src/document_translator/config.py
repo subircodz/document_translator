@@ -17,7 +17,7 @@ class Settings:
     job_ttl_seconds: int = 3600
 
     @classmethod
-    def from_environment(cls) -> "Settings":
+    def from_environment(cls) -> Settings:
         api_key = os.getenv("GOOGLE_TRANSLATE_API_KEY", "").strip()
         if not api_key:
             raise ConfigurationError("GOOGLE_TRANSLATE_API_KEY is not configured.")

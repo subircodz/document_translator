@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import html
 import logging
 import threading
 import time
 import uuid
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Callable
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
@@ -16,6 +19,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from document_translator.config import ConfigurationError, Settings
 from document_translator.document.reader import read_docx
 from document_translator.document.writer import write_docx
+from document_translator.logging import configure_logging
 from document_translator.models import TARGET_LANGUAGES, Language
 from document_translator.translation.document import translate_document
 from document_translator.translation.google_cloud import GoogleCloudTranslationProvider
@@ -24,6 +28,7 @@ from document_translator.validation.renderer import render_document_report
 from document_translator.validation.validator import validate_document
 
 _ALLOWED_SUFFIX = ".docx"
+_MAX_DOCX_ENTRIES = 10000
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -43,12 +48,16 @@ class TranslationJob:
     source_name: str
     targets: tuple[Language, ...]
     work_dir: Path
+    temp_dir: TemporaryDirectory[str]
     status: str = "queued"
     progress: int = 0
     outputs: dict[str, TargetOutput] = field(default_factory=dict)
     error: str | None = None
     created_at: float = field(default_factory=time.time)
     ttl_seconds: int = 3600
+
+    def cleanup(self) -> None:
+        self.temp_dir.cleanup()
 
 
 class JobStore:
@@ -67,6 +76,7 @@ class JobStore:
             job = self._jobs.get(job_id)
             if job is not None and time.time() - job.created_at > job.ttl_seconds:
                 self._jobs.pop(job_id, None)
+                job.cleanup()
                 return None
             return job
 
@@ -97,7 +107,27 @@ def _safe_source_name(filename: str | None) -> str:
     return name
 
 
-def _run_job(job: TranslationJob, source_path: Path, api_key: str, provider_factory) -> None:
+def _validate_docx_archive(data: bytes, max_uncompressed_bytes: int) -> None:
+    """Reject malformed, oversized, or suspicious DOCX ZIP payloads before parsing."""
+    try:
+        with zipfile.ZipFile(__import__("io").BytesIO(data)) as archive:
+            if len(archive.infolist()) > _MAX_DOCX_ENTRIES:
+                raise HTTPException(status_code=400, detail="DOCX contains too many archive entries.")
+            if not archive.testzip() is None:
+                raise HTTPException(status_code=400, detail="DOCX archive is corrupt.")
+            total_uncompressed = sum(info.file_size for info in archive.infolist())
+            if total_uncompressed > max_uncompressed_bytes:
+                raise HTTPException(status_code=413, detail="DOCX expands beyond the configured archive limit.")
+    except zipfile.BadZipFile as exc:
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid DOCX archive.") from exc
+
+
+def _run_job(
+    job: TranslationJob,
+    source_path: Path,
+    api_key: str,
+    provider_factory: Callable[[str], object],
+) -> None:
     job.status = "running"
     _LOGGER.info("translation_job_started job_id=%s targets=%s", job.job_id, [target.value for target in job.targets])
     try:
@@ -156,6 +186,8 @@ def create_app(provider_factory=None, settings: Settings | None = None) -> FastA
             settings = Settings.from_environment()
         except ConfigurationError:
             settings = None
+    if settings is not None:
+        configure_logging()
     app = FastAPI(title="Document Translator", version="0.4.0")
 
     @app.get("/", response_class=HTMLResponse)
@@ -186,9 +218,10 @@ def create_app(provider_factory=None, settings: Settings | None = None) -> FastA
         job = STORE.get(job_id)
         if job is None:
             raise HTTPException(status_code=404, detail="Translation job not found.")
+        source_name = html.escape(job.source_name)
         return f"""<!doctype html><html><head><meta charset="utf-8"><title>Translation status</title>
 <meta http-equiv="refresh" content="2"><style>body{{font-family:system-ui;max-width:760px;margin:40px auto;padding:0 20px}}li{{margin:12px 0}}</style></head>
-<body><h1>Translation status</h1><p>File: {job.source_name}</p><p>Status: <strong>{job.status}</strong> — {job.progress}%</p>
+<body><h1>Translation status</h1><p>File: {source_name}</p><p>Status: <strong>{job.status}</strong> — {job.progress}%</p>
 <ul>{''.join(_html_output(job, target) for target in job.targets)}</ul></body></html>"""
 
     @app.get("/api/translations/{job_id}")
@@ -223,13 +256,20 @@ def create_app(provider_factory=None, settings: Settings | None = None) -> FastA
         data = await file.read(settings.max_upload_bytes + 1)
         if len(data) > settings.max_upload_bytes:
             raise HTTPException(status_code=413, detail="File exceeds the configured upload limit.")
+        _validate_docx_archive(data, settings.max_archive_uncompressed_bytes)
         work_dir_obj = TemporaryDirectory(prefix="document-translator-")
         work_dir = Path(work_dir_obj.name)
         source_path = work_dir / source_name
         source_path.write_bytes(data)
-        job = TranslationJob(str(uuid.uuid4()), source_name, targets_tuple, work_dir, ttl_seconds=settings.job_ttl_seconds)
+        job = TranslationJob(
+            str(uuid.uuid4()),
+            source_name,
+            targets_tuple,
+            work_dir,
+            work_dir_obj,
+            ttl_seconds=settings.job_ttl_seconds,
+        )
         job.outputs = {target.value: TargetOutput(target) for target in targets_tuple}
-        job._tempdir = work_dir_obj  # type: ignore[attr-defined]
         STORE.add(job)
         background_tasks.add_task(_run_job, job, source_path, api_key, provider_factory)
         return job
@@ -240,7 +280,8 @@ def create_app(provider_factory=None, settings: Settings | None = None) -> FastA
 def _html_output(job: TranslationJob, target: Language) -> str:
     output = job.outputs.get(target.value)
     if output is None or output.error is not None:
-        return f"<li>{target.value}: {output.error if output else 'queued'}</li>"
+        error = html.escape(output.error) if output and output.error else "queued"
+        return f"<li>{target.value}: {error}</li>"
     return f'<li>{target.value}: <a href="/api/translations/{job.job_id}/files/{target.value}">DOCX</a> · <a href="/api/translations/{job.job_id}/reports/{target.value}">report</a></li>'
 
 

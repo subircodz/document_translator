@@ -6,7 +6,7 @@ import json
 import os
 import time
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Sequence
 from urllib import error, request
 
 from document_translator.models import Language, TranslationRequest, TranslationResult
@@ -27,6 +27,7 @@ class GoogleCloudTranslationProvider:
     timeout: float = 30.0
     max_retries: int = 3
     retry_delay: float = 1.0
+    max_batch_size: int = 128
     endpoint: str = _ENDPOINT
     opener: Callable[..., object] = request.urlopen
 
@@ -37,55 +38,95 @@ class GoogleCloudTranslationProvider:
             raise ValueError("timeout must be positive")
         if self.retry_delay < 0:
             raise ValueError("retry_delay must be non-negative")
+        if not 1 <= self.max_batch_size <= 128:
+            raise ValueError("max_batch_size must be between 1 and 128")
 
     def supports(self, source: Language, target: Language) -> bool:
         return source is Language.ENGLISH and target in _INDIAN_TARGETS
 
     def translate(self, request_data: TranslationRequest) -> TranslationResult:
-        if not self.supports(request_data.source_language, request_data.target_language):
+        results = self.translate_many([request_data])
+        return results[0]
+
+    def translate_many(
+        self, requests: Sequence[TranslationRequest]
+    ) -> list[TranslationResult]:
+        """Translate requests in bounded batches of at most 128 strings."""
+        if not requests:
+            return []
+        first = requests[0]
+        if any(
+            not self.supports(item.source_language, item.target_language)
+            for item in requests
+        ):
             raise TranslationProviderError(
                 "Unsupported language pair",
-                source_language=request_data.source_language,
-                target_language=request_data.target_language,
+                source_language=first.source_language,
+                target_language=first.target_language,
+            )
+        if any(
+            (item.source_language, item.target_language)
+            != (first.source_language, first.target_language)
+            for item in requests
+        ):
+            raise TranslationProviderError(
+                "A batch must contain one language pair",
+                source_language=first.source_language,
+                target_language=first.target_language,
             )
 
         api_key = self.api_key or os.getenv("GOOGLE_TRANSLATE_API_KEY")
         if not api_key:
             raise TranslationProviderError(
                 "GOOGLE_TRANSLATE_API_KEY is not configured",
-                source_language=request_data.source_language,
-                target_language=request_data.target_language,
+                source_language=first.source_language,
+                target_language=first.target_language,
             )
 
-        payload = {
-            "q": request_data.text,
-            "source": request_data.source_language.value,
-            "target": request_data.target_language.value,
-            "format": "text",
-        }
-        response = self._post(payload, request_data, api_key)
-        try:
-            translated = response["data"]["translations"][0]["translatedText"]
-        except (KeyError, IndexError, TypeError) as exc:
-            raise TranslationProviderError(
-                "Google Cloud returned an invalid translation response",
-                source_language=request_data.source_language,
-                target_language=request_data.target_language,
-            ) from exc
-        if not isinstance(translated, str):
-            raise TranslationProviderError(
-                "Google Cloud returned non-text translation content",
-                source_language=request_data.source_language,
-                target_language=request_data.target_language,
+        results: list[TranslationResult] = []
+        for start in range(0, len(requests), self.max_batch_size):
+            batch = requests[start : start + self.max_batch_size]
+            payload = {
+                "q": [item.text for item in batch],
+                "source": first.source_language.value,
+                "target": first.target_language.value,
+                "format": "text",
+            }
+            response = self._post(payload, first, api_key)
+            try:
+                translations = response["data"]["translations"]
+                translated_texts = [item["translatedText"] for item in translations]
+            except (KeyError, IndexError, TypeError) as exc:
+                raise TranslationProviderError(
+                    "Google Cloud returned an invalid translation response",
+                    source_language=first.source_language,
+                    target_language=first.target_language,
+                ) from exc
+            if len(translated_texts) != len(batch) or not all(
+                isinstance(text, str) for text in translated_texts
+            ):
+                raise TranslationProviderError(
+                    "Google Cloud returned an incomplete translation batch",
+                    source_language=first.source_language,
+                    target_language=first.target_language,
+                )
+            results.extend(
+                TranslationResult(
+                    source_language=item.source_language,
+                    target_language=item.target_language,
+                    source_text=item.text,
+                    translated_text=translated,
+                )
+                for item, translated in zip(batch, translated_texts)
             )
-        return TranslationResult(
-            source_language=request_data.source_language,
-            target_language=request_data.target_language,
-            source_text=request_data.text,
-            translated_text=translated,
-        )
+        return results
 
-    def _post(self, payload: dict[str, object], request_data: TranslationRequest, api_key: str) -> dict[str, object]:
+    def _post(
+        self,
+        payload: dict[str, object],
+        request_data: TranslationRequest,
+        api_key: str,
+    ) -> dict[str, object]:
         body = json.dumps(payload).encode("utf-8")
         http_request = request.Request(
             self.endpoint,

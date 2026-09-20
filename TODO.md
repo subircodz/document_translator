@@ -1,6 +1,17 @@
 # TODO
 
-## Active phase: Phase 6 — Web Application
+## Active phase: Phase 7 — Production Hardening
+
+- [x] Centralized environment configuration
+- [x] Structured JSON logging
+- [x] Configurable upload limit
+- [x] Job TTL cleanup
+- [ ] Security review
+- [ ] Dependency review
+- [ ] Performance tests
+- [ ] Release workflow
+
+## Completed Phase 6 — Web Application
 
 - [x] DOCX upload
 - [x] Multiple target language selection

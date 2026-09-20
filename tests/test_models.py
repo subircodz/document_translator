@@ -1,4 +1,4 @@
-from document_translator.models import Language, TARGET_LANGUAGES
+from document_translator.models import TARGET_LANGUAGES, Language
 
 
 def test_all_target_languages_are_registered() -> None:

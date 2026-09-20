@@ -8,7 +8,10 @@ from document_translator.validation.report import (
     ValidationIssue,
     ValidationStatus,
 )
-from document_translator.validation.validator import validate_document, validate_translation
+from document_translator.validation.validator import (
+    validate_document,
+    validate_translation,
+)
 
 __all__ = [
     "DocumentValidationItem",

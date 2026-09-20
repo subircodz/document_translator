@@ -75,7 +75,7 @@ class JobStore:
     def get(self, job_id: str) -> TranslationJob | None:
         with self._lock:
             job = self._jobs.get(job_id)
-            if job is not None and time.time() - job.created_at > job.ttl_seconds:
+            if (\n                job is not None\n                and job.status not in {"queued", "running"}\n                and time.time() - job.created_at > job.ttl_seconds\n            ):
                 self._jobs.pop(job_id, None)
                 job.cleanup()
                 return None

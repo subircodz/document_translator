@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import os
+import logging
 import threading
+import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -12,6 +13,7 @@ from tempfile import TemporaryDirectory
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 
+from document_translator.config import ConfigurationError, Settings
 from document_translator.document.reader import read_docx
 from document_translator.document.writer import write_docx
 from document_translator.models import TARGET_LANGUAGES, Language
@@ -21,8 +23,8 @@ from document_translator.translation.service import TranslationService
 from document_translator.validation.renderer import render_document_report
 from document_translator.validation.validator import validate_document
 
-_MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 _ALLOWED_SUFFIX = ".docx"
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -31,6 +33,8 @@ class TargetOutput:
     document_path: Path | None = None
     report_path: Path | None = None
     error: str | None = None
+    created_at: float = field(default_factory=time.time)
+    ttl_seconds: int = 3600
 
 
 @dataclass
@@ -58,7 +62,11 @@ class JobStore:
 
     def get(self, job_id: str) -> TranslationJob | None:
         with self._lock:
-            return self._jobs.get(job_id)
+            job = self._jobs.get(job_id)
+            if job is not None and time.time() - job.created_at > job.ttl_seconds:
+                self._jobs.pop(job_id, None)
+                return None
+            return job
 
 
 STORE = JobStore()
@@ -89,6 +97,7 @@ def _safe_source_name(filename: str | None) -> str:
 
 def _run_job(job: TranslationJob, source_path: Path, api_key: str, provider_factory) -> None:
     job.status = "running"
+    _LOGGER.info("translation_job_started job_id=%s targets=%s", job.job_id, [target.value for target in job.targets])
     try:
         source = read_docx(source_path)
         service = TranslationService(provider_factory(api_key))
@@ -106,13 +115,16 @@ def _run_job(job: TranslationJob, source_path: Path, api_key: str, provider_fact
             except (OSError, RuntimeError, ValueError) as exc:
                 job.outputs[target.value] = TargetOutput(target, error=str(exc))
             job.progress = int(index * 100 / total)
+            _LOGGER.info("translation_target_finished job_id=%s target=%s progress=%s", job.job_id, target.value, job.progress)
         if all(output.error is None for output in job.outputs.values()):
             job.status = "completed"
         else:
             job.status = "completed_with_errors"
+        _LOGGER.info("translation_job_finished job_id=%s status=%s", job.job_id, job.status)
     except (OSError, RuntimeError, ValueError) as exc:
         job.error = str(exc)
         job.status = "failed"
+        _LOGGER.exception("translation_job_failed job_id=%s", job.job_id)
 
 
 def _job_payload(job: TranslationJob) -> dict[str, object]:
@@ -133,10 +145,15 @@ def _job_payload(job: TranslationJob) -> dict[str, object]:
     }
 
 
-def create_app(provider_factory=None) -> FastAPI:
-    """Create the web application with an injectable translation provider factory."""
+def create_app(provider_factory=None, settings: Settings | None = None) -> FastAPI:
+    """Create the web application with injectable provider and settings."""
     if provider_factory is None:
         provider_factory = lambda api_key: GoogleCloudTranslationProvider(api_key=api_key)
+    if settings is None:
+        try:
+            settings = Settings.from_environment()
+        except ConfigurationError:
+            settings = None
     app = FastAPI(title="Document Translator", version="0.3.0")
 
     @app.get("/", response_class=HTMLResponse)
@@ -198,17 +215,17 @@ def create_app(provider_factory=None) -> FastAPI:
     ) -> TranslationJob:
         source_name = _safe_source_name(file.filename)
         targets_tuple = _parse_targets(target_values)
-        api_key = os.getenv("GOOGLE_TRANSLATE_API_KEY")
-        if not api_key:
+        if settings is None:
             raise HTTPException(status_code=503, detail="GOOGLE_TRANSLATE_API_KEY is not configured.")
-        data = await file.read(_MAX_UPLOAD_BYTES + 1)
-        if len(data) > _MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail="File exceeds the 10 MB upload limit.")
+        api_key = settings.google_translate_api_key
+        data = await file.read(settings.max_upload_bytes + 1)
+        if len(data) > settings.max_upload_bytes:
+            raise HTTPException(status_code=413, detail="File exceeds the configured upload limit.")
         work_dir_obj = TemporaryDirectory(prefix="document-translator-")
         work_dir = Path(work_dir_obj.name)
         source_path = work_dir / source_name
         source_path.write_bytes(data)
-        job = TranslationJob(str(uuid.uuid4()), source_name, targets_tuple, work_dir)
+        job = TranslationJob(str(uuid.uuid4()), source_name, targets_tuple, work_dir, ttl_seconds=settings.job_ttl_seconds)
         job.outputs = {target.value: TargetOutput(target) for target in targets_tuple}
         job._tempdir = work_dir_obj  # type: ignore[attr-defined]
         STORE.add(job)

@@ -41,10 +41,10 @@
 
 ## Phase 5 — Application Interface
 - [x] CLI foundation
-- [ ] Input/output handling
-- [ ] Language selection
-- [ ] Batch translation
-- [ ] User-friendly errors
+- [x] Input/output handling
+- [x] Language selection
+- [x] Batch translation
+- [x] User-friendly errors
 
 ## Phase 6 — Web Application
 - [ ] Upload document

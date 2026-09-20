@@ -5,8 +5,8 @@ from docx import Document
 from fastapi.testclient import TestClient
 
 from document_translator.config import ConfigurationError, Settings
-from document_translator.document.reader import read_docx
 from document_translator.document.model import DocumentModel, ParagraphModel, RunModel
+from document_translator.document.reader import read_docx
 from document_translator.models import Language, TranslationResult
 from document_translator.translation.document import translate_document
 from document_translator.web.app import create_app

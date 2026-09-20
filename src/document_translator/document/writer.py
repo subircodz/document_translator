@@ -36,7 +36,15 @@ def _write_cell(cell: _Cell, paragraphs: tuple[ParagraphModel, ...]) -> None:
     for paragraph_model in paragraphs:
         paragraph = cell.paragraphs[0] if first else cell.add_paragraph()
         first = False
-        _write_runs(paragraph, paragraph_model)
+        if paragraph_model.style:
+            try:
+                paragraph.style = paragraph_model.style
+            except (KeyError, ValueError):
+                pass
+        if paragraph_model.runs:
+            _write_runs(paragraph, paragraph_model)
+        elif paragraph_model.text:
+            paragraph.add_run(paragraph_model.text)
 
 
 def _write_table(document: Document, table_model: TableModel) -> None:

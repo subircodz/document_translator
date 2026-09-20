@@ -1,9 +1,14 @@
 from dataclasses import dataclass
 
-from document_translator.document.model import DocumentModel, ParagraphModel, RunModel, TableModel
+from document_translator.document.model import (
+    DocumentModel,
+    ParagraphModel,
+    RunModel,
+    TableModel,
+)
 from document_translator.models import Language, TranslationRequest, TranslationResult
-from document_translator.translation.service import TranslationService
 from document_translator.translation.document import translate_document
+from document_translator.translation.service import TranslationService
 
 
 @dataclass

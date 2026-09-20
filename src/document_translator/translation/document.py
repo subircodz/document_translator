@@ -23,8 +23,8 @@ def _translated_paragraphs(
     document: DocumentModel, service: TranslationService, target: Language
 ) -> dict[int, ParagraphModel]:
     paragraphs = _paragraphs(document)
-    requests = []
-    request_runs: list[tuple[ParagraphModel, int]] = []
+    requests: list[TranslationRequest] = []
+    request_keys: list[tuple[int, int | None]] = []
 
     for paragraph in paragraphs:
         if paragraph.runs:
@@ -33,25 +33,28 @@ def _translated_paragraphs(
                     requests.append(
                         TranslationRequest(Language.ENGLISH, target, run.text)
                     )
-                    request_runs.append((paragraph, index))
+                    request_keys.append((id(paragraph), index))
         elif paragraph.text.strip():
             requests.append(
                 TranslationRequest(Language.ENGLISH, target, paragraph.text)
             )
+            request_keys.append((id(paragraph), None))
 
-    results = iter(service.translate_many(requests))
+    results = service.translate_many(requests)
+    if len(results) != len(request_keys):
+        raise RuntimeError("Translation service returned an incomplete batch.")
+
+    translated_texts = dict(
+        zip(request_keys, (result.translated_text for result in results), strict=True)
+    )
+
     translated: dict[int, ParagraphModel] = {}
-    run_results: dict[tuple[int, int], str] = {}
-
-    for paragraph, index in request_runs:
-        run_results[(id(paragraph), index)] = next(results).translated_text
-
     for paragraph in paragraphs:
         if paragraph.runs:
             runs = tuple(
                 replace(
                     run,
-                    text=run_results.get((id(paragraph), index), run.text),
+                    text=translated_texts.get((id(paragraph), index), run.text),
                 )
                 for index, run in enumerate(paragraph.runs)
             )
@@ -60,9 +63,9 @@ def _translated_paragraphs(
                 paragraph, text=translated_text, runs=runs
             )
         elif paragraph.text.strip():
-            result = next(results)
             translated[id(paragraph)] = replace(
-                paragraph, text=result.translated_text
+                paragraph,
+                text=translated_texts[(id(paragraph), None)],
             )
         else:
             translated[id(paragraph)] = paragraph

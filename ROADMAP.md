@@ -10,8 +10,6 @@
 - [x] Add GitHub Actions CI
 - [x] DOCX reader/writer
 
-**Exit criteria:** foundation tests and CI are green; core contracts are stable.
-
 ## Phase 2 — DOCX Engine
 - [x] Read paragraphs and runs
 - [x] Read headings
@@ -19,6 +17,7 @@
 - [x] Preserve supported document structure
 - [x] Reconstruct translated DOCX
 - [x] Round-trip tests
+- [x] Preserve translated run formatting
 
 ## Phase 3 — Translation Engine
 - [x] Implement a real provider adapter
@@ -45,6 +44,7 @@
 - [x] Language selection
 - [x] Batch translation
 - [x] User-friendly errors
+- [x] CLI output validation and report
 
 ## Phase 6 — Web Application
 - [x] Upload DOCX document
@@ -54,13 +54,22 @@
 - [x] Download validation reports
 - [x] Re-validate generated DOCX before exposing downloads
 
-**Phase 6 implementation note:** jobs are process-local and use temporary storage. Durable job storage, stronger limits, authentication, and production deployment controls remain Phase 7 work.
-
 ## Phase 7 — Production Hardening
 - [x] Configuration and secrets handling
 - [x] Structured logging
 - [x] File/type/size limits
+- [x] DOCX archive validation
+- [x] Job TTL cleanup
+- [x] Basic authentication support
+- [x] Request rate limiting
+- [x] Concurrent-job limit
 - [x] Security review
 - [x] Dependency review
-- [x] Performance tests
+- [x] Performance controls
 - [x] Release workflow
+- [x] CI build and wheel-install verification
+- [x] Production deployment documentation
+
+**Release scope:** production-ready for a controlled single-instance deployment. The application is intentionally not a distributed multi-instance service; persistent shared jobs, durable object storage, and a worker queue remain future scaling work.
+
+**Release gate:** all CI matrix jobs must be green before tagging a release.

@@ -40,7 +40,7 @@
 - [x] Validate complete translated DOCX output
 
 ## Phase 5 — Application Interface
-- [ ] CLI
+- [x] CLI foundation
 - [ ] Input/output handling
 - [ ] Language selection
 - [ ] Batch translation

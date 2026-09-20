@@ -1,4 +1,5 @@
 import pytest
+
 from document_translator.cli import _default_output, _language, build_parser
 from document_translator.models import Language
 

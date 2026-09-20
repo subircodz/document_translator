@@ -91,7 +91,7 @@ def test_protected_web_app_requires_basic_auth() -> None:
     assert client.get("/", auth=("admin", "secret")).status_code == 200
 
 
-def test_protected_web_app_translates_with_auth() -> None:
+def test_protected_web_app_translates_with_auth(tmp_path) -> None:
     settings = Settings(
         google_translate_api_key="test",
         web_username="admin",
@@ -124,7 +124,9 @@ def test_protected_web_app_translates_with_auth() -> None:
         auth=("admin", "secret"),
     )
     assert output.status_code == 200
-    model = read_docx(io.BytesIO(output.content))
+    output_path = tmp_path / "translated.docx"
+    output_path.write_bytes(output.content)
+    model = read_docx(output_path)
     paragraph = model.blocks[0]
     assert isinstance(paragraph, ParagraphModel)
     assert paragraph.runs[0].bold is True

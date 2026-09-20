@@ -25,12 +25,13 @@ def render_document_report(report: DocumentValidationReport) -> str:
 
     if not issues:
         lines.append("Issues: none")
-        return "
-".join(lines)
+        return "\n".join(lines)
 
     lines.append("Issues:")
     for location, issue in issues:
-        lines.append(f"- [{issue.severity.value.upper()}] {location}: {issue.code}")
+        lines.append(
+            f"- [{issue.severity.value.upper()}] {location}: {issue.code}"
+        )
         lines.append(f"  {issue.message}")
-    return "
-".join(lines)
+
+    return "\n".join(lines)

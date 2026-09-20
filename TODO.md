@@ -1,15 +1,16 @@
 # TODO
 
-## Active phase: Phase 7 — Production Hardening
+## Release status: v0.5.0
 
-- [x] Centralized environment configuration
-- [x] Structured JSON logging
-- [x] Configurable upload limit
-- [x] Job TTL cleanup
-- [x] Security review
-- [x] Dependency review
-- [x] Performance tests
-- [x] Release workflow
+- [x] Production web authentication
+- [x] Request rate limiting
+- [x] Concurrent-job protection
+- [x] DOCX archive validation
+- [x] CLI output validation
+- [x] Translated run-format preservation
+- [x] CI matrix
+- [x] Built-package verification
+- [x] Release workflow verification
 
 ## Completed Phase 6 — Web Application
 
@@ -21,35 +22,13 @@
 - [x] Validation report downloads
 - [x] Validate generated DOCX before download
 
-## Completed Phase 5
+## Future scaling work — not required for v0.5.0 controlled release
 
-- [x] CLI foundation
-- [x] Input/output handling
-- [x] Language selection
-- [x] Single-document translation orchestration
-- [x] Batch translation
-- [x] User-friendly errors
-
-## Completed Phase 4
-
-
-- [x] Language registry
-- [x] Translation provider protocol
-- [x] Translation result/error models
-- [x] Protected-token model and basic protection
-- [x] Google Cloud Translation adapter
-- [x] Bounded translation batching
-- [x] Transient-failure retries
-- [x] Provider integration tests with mocks
-- [x] Token protection integrated with translation service
-- [x] Translation validation rules
-- [x] Validation report model
-- [x] Human-readable document-level report
-- [x] Validate complete translated DOCX output
-- [x] Unit tests
-- [x] Ruff configuration
-- [x] CI workflow
-- [x] DOCX reader/writer
+- [ ] Persistent shared job storage
+- [ ] Durable object storage
+- [ ] Distributed worker/task queue
+- [ ] Multi-instance shared rate limiting
+- [ ] User/tenant authorization model
 
 ## Engineering rules
 
@@ -59,3 +38,4 @@
 4. Treat identifiers, URLs, emails, numbers, and placeholders as protected data.
 5. Keep Unicode handling explicit and tested.
 6. Update this file and ROADMAP.md when a phase changes.
+7. Do not tag a release until the complete CI matrix is green.

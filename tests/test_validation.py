@@ -7,7 +7,10 @@ from document_translator.document.model import (
 from document_translator.models import Language, TranslationResult
 from document_translator.validation.renderer import render_document_report
 from document_translator.validation.report import ValidationStatus
-from document_translator.validation.validator import validate_document, validate_translation
+from document_translator.validation.validator import (
+    validate_document,
+    validate_translation,
+)
 
 
 def result(source: str, translated: str) -> TranslationResult:

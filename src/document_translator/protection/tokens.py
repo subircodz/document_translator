@@ -4,8 +4,8 @@ import re
 from dataclasses import dataclass
 
 _TOKEN_PATTERN = re.compile(
-    r"(?:https?://\\S+|www\\.\\S+|[\\w.+-]+@[\\w.-]+\\.\\w+|"
-    r"\\b(?:ORD|ID|REF)[-_][A-Z0-9-]+\\b)"
+    r"(?:https?://\S+|www\.\S+|[\w.+-]+@[\w.-]+\.\w+|"
+    r"\b(?:ORD|ID|REF)[-_][A-Z0-9-]+\b)"
 )
 
 

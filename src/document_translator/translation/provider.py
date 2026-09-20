@@ -6,7 +6,7 @@ from document_translator.models import Language, TranslationRequest, Translation
 
 
 class TranslationProvider(Protocol):
-    """Contract implemented by external translation providers."""
+    """Contract implemented by translation providers."""
 
     def translate(self, request: TranslationRequest) -> TranslationResult:
         """Translate one request."""

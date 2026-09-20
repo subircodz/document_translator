@@ -47,11 +47,14 @@
 - [x] User-friendly errors
 
 ## Phase 6 — Web Application
-- [ ] Upload document
-- [ ] Select target languages
-- [ ] Translation progress
-- [ ] Download outputs
-- [ ] Report download
+- [x] Upload DOCX document
+- [x] Select one or more target languages
+- [x] Translation progress and job status
+- [x] Download translated DOCX outputs
+- [x] Download validation reports
+- [x] Re-validate generated DOCX before exposing downloads
+
+**Phase 6 implementation note:** jobs are process-local and use temporary storage. Durable job storage, stronger limits, authentication, and production deployment controls remain Phase 7 work.
 
 ## Phase 7 — Production Hardening
 - [ ] Configuration and secrets handling

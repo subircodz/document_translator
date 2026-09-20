@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 import os
 import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Callable, Sequence
 from urllib import error, request
 
 from document_translator.models import Language, TranslationRequest, TranslationResult

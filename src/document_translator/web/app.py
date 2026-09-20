@@ -1,0 +1,239 @@
+"""FastAPI web application for document translation."""
+
+from __future__ import annotations
+
+import os
+import threading
+import uuid
+from dataclasses import dataclass, field
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse
+
+from document_translator.document.reader import read_docx
+from document_translator.document.writer import write_docx
+from document_translator.models import TARGET_LANGUAGES, Language
+from document_translator.translation.document import translate_document
+from document_translator.translation.google_cloud import GoogleCloudTranslationProvider
+from document_translator.translation.service import TranslationService
+from document_translator.validation.report import render_document_report
+from document_translator.validation.validator import validate_document
+
+_MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+_ALLOWED_SUFFIX = ".docx"
+
+
+@dataclass
+class TargetOutput:
+    target: Language
+    document_path: Path | None = None
+    report_path: Path | None = None
+    error: str | None = None
+
+
+@dataclass
+class TranslationJob:
+    job_id: str
+    source_name: str
+    targets: tuple[Language, ...]
+    work_dir: Path
+    status: str = "queued"
+    progress: int = 0
+    outputs: dict[str, TargetOutput] = field(default_factory=dict)
+    error: str | None = None
+
+
+class JobStore:
+    """Small process-local job store for the Phase 6 web MVP."""
+
+    def __init__(self) -> None:
+        self._jobs: dict[str, TranslationJob] = {}
+        self._lock = threading.Lock()
+
+    def add(self, job: TranslationJob) -> None:
+        with self._lock:
+            self._jobs[job.job_id] = job
+
+    def get(self, job_id: str) -> TranslationJob | None:
+        with self._lock:
+            return self._jobs.get(job_id)
+
+
+STORE = JobStore()
+
+
+def _parse_targets(values: list[str]) -> tuple[Language, ...]:
+    if not values:
+        raise HTTPException(status_code=400, detail="Select at least one target language.")
+    targets: list[Language] = []
+    for value in values:
+        try:
+            language = Language(value.lower())
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"Unsupported target language: {value}") from exc
+        if language not in TARGET_LANGUAGES:
+            raise HTTPException(status_code=400, detail=f"Unsupported target language: {value}")
+        if language not in targets:
+            targets.append(language)
+    return tuple(targets)
+
+
+def _safe_source_name(filename: str | None) -> str:
+    name = Path(filename or "document.docx").name
+    if not name or Path(name).suffix.lower() != _ALLOWED_SUFFIX:
+        raise HTTPException(status_code=400, detail="Only .docx files are supported.")
+    return name
+
+
+def _run_job(job: TranslationJob, source_path: Path, api_key: str) -> None:
+    job.status = "running"
+    try:
+        source = read_docx(source_path)
+        service = TranslationService(GoogleCloudTranslationProvider(api_key=api_key))
+        total = len(job.targets)
+        for index, target in enumerate(job.targets, start=1):
+            try:
+                translated = translate_document(source, service, target)
+                output_path = job.work_dir / f"{Path(job.source_name).stem}.{target.value}.docx"
+                write_docx(translated, output_path)
+                reloaded = read_docx(output_path)
+                report = validate_document(source, reloaded, Language.ENGLISH, target)
+                report_path = job.work_dir / f"{Path(job.source_name).stem}.{target.value}.report.txt"
+                report_path.write_text(render_document_report(report), encoding="utf-8")
+                job.outputs[target.value] = TargetOutput(target, output_path, report_path)
+            except (OSError, RuntimeError, ValueError) as exc:
+                job.outputs[target.value] = TargetOutput(target, error=str(exc))
+            job.progress = int(index * 100 / total)
+        if all(output.error is None for output in job.outputs.values()):
+            job.status = "completed"
+        else:
+            job.status = "completed_with_errors"
+    except (OSError, RuntimeError, ValueError) as exc:
+        job.error = str(exc)
+        job.status = "failed"
+
+
+def _job_payload(job: TranslationJob) -> dict[str, object]:
+    outputs = []
+    for target, output in job.outputs.items():
+        item: dict[str, object] = {"target": target, "error": output.error}
+        if output.error is None:
+            item["document_url"] = f"/api/translations/{job.job_id}/files/{target}"
+            item["report_url"] = f"/api/translations/{job.job_id}/reports/{target}"
+        outputs.append(item)
+    return {
+        "job_id": job.job_id,
+        "source": job.source_name,
+        "status": job.status,
+        "progress": job.progress,
+        "error": job.error,
+        "outputs": outputs,
+    }
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="Document Translator", version="0.3.0")
+
+    @app.get("/", response_class=HTMLResponse)
+    def home() -> str:
+        languages = "".join(
+            f'<label><input type="checkbox" name="targets" value="{lang.value}"> {lang.name.title()}</label>'
+            for lang in sorted(TARGET_LANGUAGES, key=lambda item: item.value)
+        )
+        return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Document Translator</title>
+<style>body{{font-family:system-ui;max-width:760px;margin:40px auto;padding:0 20px}}label{{display:block;margin:8px 0}}button{{margin-top:18px;padding:10px 18px}}.hint{{color:#555}}</style>
+</head><body><h1>Document Translator</h1><p class="hint">Translate an English DOCX into one or more Indian languages.</p>
+<form action="/translate" method="post" enctype="multipart/form-data">
+<p><input type="file" name="file" accept=".docx" required></p><fieldset><legend>Target languages</legend>{languages}</fieldset>
+<button type="submit">Start translation</button></form></body></html>"""
+
+    @app.post("/translate", response_class=HTMLResponse)
+    async def translate_form(
+        background_tasks: BackgroundTasks,
+        file: UploadFile = File(...),
+        targets: list[str] = Form(...),
+    ) -> str:
+        job = await _create_job(file, targets, background_tasks)
+        return f'<meta http-equiv="refresh" content="0; url=/jobs/{job.job_id}">'
+
+    @app.get("/jobs/{job_id}", response_class=HTMLResponse)
+    def job_page(job_id: str) -> str:
+        job = STORE.get(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="Translation job not found.")
+        return f"""<!doctype html><html><head><meta charset="utf-8"><title>Translation status</title>
+<meta http-equiv="refresh" content="2"><style>body{{font-family:system-ui;max-width:760px;margin:40px auto;padding:0 20px}}li{{margin:12px 0}}</style></head>
+<body><h1>Translation status</h1><p>File: {job.source_name}</p><p>Status: <strong>{job.status}</strong> — {job.progress}%</p>
+<ul>{''.join(_html_output(job, target) for target in job.targets)}</ul></body></html>"""
+
+    @app.get("/api/translations/{job_id}")
+    def job_status(job_id: str) -> dict[str, object]:
+        job = STORE.get(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="Translation job not found.")
+        return _job_payload(job)
+
+    @app.get("/api/translations/{job_id}/files/{target}")
+    def download_document(job_id: str, target: str) -> FileResponse:
+        output = _get_output(job_id, target).document_path
+        if output is None or not output.is_file():
+            raise HTTPException(status_code=404, detail="Translated document is not available.")
+        return FileResponse(output, filename=output.name, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+    @app.get("/api/translations/{job_id}/reports/{target}")
+    def download_report(job_id: str, target: str) -> FileResponse:
+        output = _get_output(job_id, target).report_path
+        if output is None or not output.is_file():
+            raise HTTPException(status_code=404, detail="Validation report is not available.")
+        return FileResponse(output, filename=output.name, media_type="text/plain; charset=utf-8")
+
+    async def _create_job(
+        file: UploadFile, target_values: list[str], background_tasks: BackgroundTasks
+    ) -> TranslationJob:
+        source_name = _safe_source_name(file.filename)
+        targets_tuple = _parse_targets(target_values)
+        api_key = os.getenv("GOOGLE_TRANSLATE_API_KEY")
+        if not api_key:
+            raise HTTPException(status_code=503, detail="GOOGLE_TRANSLATE_API_KEY is not configured.")
+        data = await file.read(_MAX_UPLOAD_BYTES + 1)
+        if len(data) > _MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="File exceeds the 10 MB upload limit.")
+        work_dir_obj = TemporaryDirectory(prefix="document-translator-")
+        work_dir = Path(work_dir_obj.name)
+        source_path = work_dir / source_name
+        source_path.write_bytes(data)
+        job = TranslationJob(str(uuid.uuid4()), source_name, targets_tuple, work_dir)
+        job.outputs = {target.value: TargetOutput(target) for target in targets_tuple}
+        job._tempdir = work_dir_obj  # type: ignore[attr-defined]
+        STORE.add(job)
+        background_tasks.add_task(_run_job, job, source_path, api_key)
+        return job
+
+    return app
+
+
+def _html_output(job: TranslationJob, target: Language) -> str:
+    output = job.outputs.get(target.value)
+    if output is None or output.error is not None:
+        return f"<li>{target.value}: {output.error if output else 'queued'}</li>"
+    return f'<li>{target.value}: <a href="/api/translations/{job.job_id}/files/{target.value}">DOCX</a> · <a href="/api/translations/{job.job_id}/reports/{target.value}">report</a></li>'
+
+
+def _get_output(job_id: str, target: str) -> TargetOutput:
+    job = STORE.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Translation job not found.")
+    try:
+        language = Language(target.lower())
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Target language not found.") from exc
+    output = job.outputs.get(language.value)
+    if output is None:
+        raise HTTPException(status_code=404, detail="Target language not found for this job.")
+    return output
+
+
+app = create_app()

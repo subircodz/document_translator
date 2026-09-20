@@ -36,8 +36,8 @@
 - [x] Unicode validation
 - [x] Translation validation report model
 - [x] Failure/warning classification
-- [ ] Human-readable document-level report
-- [ ] Validate complete translated DOCX output
+- [x] Human-readable document-level report
+- [x] Validate complete translated DOCX output
 
 ## Phase 5 — Application Interface
 - [ ] CLI

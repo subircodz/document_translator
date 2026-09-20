@@ -47,6 +47,8 @@ class TranslationJob:
     progress: int = 0
     outputs: dict[str, TargetOutput] = field(default_factory=dict)
     error: str | None = None
+    created_at: float = field(default_factory=time.time)
+    ttl_seconds: int = 3600
 
 
 class JobStore:

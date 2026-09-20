@@ -1,6 +1,16 @@
 # TODO
 
-## Active phase: Phase 5 — Application Interface
+## Active phase: Phase 6 — Web Application
+
+- [x] DOCX upload
+- [x] Multiple target language selection
+- [x] Background translation job
+- [x] Progress/status endpoint
+- [x] Translated DOCX downloads
+- [x] Validation report downloads
+- [x] Validate generated DOCX before download
+
+## Completed Phase 5
 
 - [x] CLI foundation
 - [x] Input/output handling

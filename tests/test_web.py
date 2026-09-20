@@ -123,6 +123,7 @@ def test_expired_job_cleans_up(tmp_path) -> None:
         (Language.HINDI,),
         work_dir,
         temp_dir,
+        status="completed",
         ttl_seconds=1,
         created_at=time.time() - 2,
     )

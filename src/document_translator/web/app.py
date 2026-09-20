@@ -19,10 +19,7 @@ from document_translator.translation.document import translate_document
 from document_translator.translation.google_cloud import GoogleCloudTranslationProvider
 from document_translator.translation.service import TranslationService
 from document_translator.validation.renderer import render_document_report
-from document_translator.validation.validator import (
-    render_document_report,
-    validate_document,
-)
+from document_translator.validation.validator import validate_document
 
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 _ALLOWED_SUFFIX = ".docx"

@@ -1,4 +1,5 @@
 import json
+from typing import Self
 from urllib.error import HTTPError
 
 import pytest
@@ -12,7 +13,7 @@ class FakeResponse:
     def __init__(self, payload: dict[str, object]) -> None:
         self.payload = payload
 
-    def __enter__(self) -> "FakeResponse":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *args: object) -> None:
@@ -51,7 +52,9 @@ def test_google_provider_batches_requests() -> None:
             "data": {"translations": [{"translatedText": "एक"}, {"translatedText": "दो"}]}
         })
 
-    provider = GoogleCloudTranslationProvider(api_key="secret", opener=opener, max_batch_size=2)
+    provider = GoogleCloudTranslationProvider(
+        api_key="secret", opener=opener, max_batch_size=2
+    )
     results = provider.translate_many([request_data("one"), request_data("two")])
 
     assert calls == 1
@@ -76,7 +79,9 @@ def test_google_provider_retries_transient_http_error() -> None:
             raise HTTPError("https://example.test", 503, "busy", {}, None)
         return FakeResponse({"data": {"translations": [{"translatedText": "नमस्ते"}]}})
 
-    provider = GoogleCloudTranslationProvider(api_key="secret", opener=opener, retry_delay=0)
+    provider = GoogleCloudTranslationProvider(
+        api_key="secret", opener=opener, retry_delay=0
+    )
     result = provider.translate(request_data())
 
     assert result.translated_text == "नमस्ते"
@@ -87,7 +92,9 @@ def test_google_provider_fails_after_retry_limit() -> None:
     def opener(http_request: object, timeout: float) -> FakeResponse:
         raise HTTPError("https://example.test", 503, "busy", {}, None)
 
-    provider = GoogleCloudTranslationProvider(api_key="secret", opener=opener, max_retries=2, retry_delay=0)
+    provider = GoogleCloudTranslationProvider(
+        api_key="secret", opener=opener, max_retries=2, retry_delay=0
+    )
 
     with pytest.raises(TranslationProviderError, match="HTTP 503"):
         provider.translate(request_data())

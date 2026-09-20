@@ -1,6 +1,15 @@
 # TODO
 
-## Active phase: Phase 4 — Validation & Reporting
+## Active phase: Phase 5 — Application Interface
+
+- [x] CLI foundation
+- [ ] Input/output handling
+- [ ] Language selection
+- [ ] Batch translation
+- [ ] User-friendly errors
+
+## Completed Phase 4
+
 
 - [x] Language registry
 - [x] Translation provider protocol

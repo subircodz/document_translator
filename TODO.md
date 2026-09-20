@@ -13,8 +13,8 @@
 - [x] Token protection integrated with translation service
 - [x] Translation validation rules
 - [x] Validation report model
-- [ ] Human-readable document-level report
-- [ ] Validate complete translated DOCX output
+- [x] Human-readable document-level report
+- [x] Validate complete translated DOCX output
 - [x] Unit tests
 - [x] Ruff configuration
 - [x] CI workflow

@@ -1,0 +1,1 @@
+"""DOCX document processing components."""

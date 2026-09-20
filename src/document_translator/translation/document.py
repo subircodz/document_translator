@@ -23,26 +23,50 @@ def _translated_paragraphs(
     document: DocumentModel, service: TranslationService, target: Language
 ) -> dict[int, ParagraphModel]:
     paragraphs = _paragraphs(document)
-    requests = [
-        TranslationRequest(Language.ENGLISH, target, paragraph.text)
-        for paragraph in paragraphs
-        if paragraph.text.strip()
-    ]
+    requests = []
+    request_runs: list[tuple[ParagraphModel, int]] = []
+
+    for paragraph in paragraphs:
+        if paragraph.runs:
+            for index, run in enumerate(paragraph.runs):
+                if run.text.strip():
+                    requests.append(
+                        TranslationRequest(Language.ENGLISH, target, run.text)
+                    )
+                    request_runs.append((paragraph, index))
+        elif paragraph.text.strip():
+            requests.append(
+                TranslationRequest(Language.ENGLISH, target, paragraph.text)
+            )
+
     results = iter(service.translate_many(requests))
     translated: dict[int, ParagraphModel] = {}
+    run_results: dict[tuple[int, int], str] = {}
+
+    for paragraph, index in request_runs:
+        run_results[(id(paragraph), index)] = next(results).translated_text
+
     for paragraph in paragraphs:
-        if not paragraph.text.strip():
-            translated[id(paragraph)] = paragraph
-            continue
-        result = next(results)
         if paragraph.runs:
-            first = paragraph.runs[0]
-            runs = (replace(first, text=result.translated_text), *paragraph.runs[1:])
+            runs = tuple(
+                replace(
+                    run,
+                    text=run_results.get((id(paragraph), index), run.text),
+                )
+                for index, run in enumerate(paragraph.runs)
+            )
+            translated_text = "".join(run.text for run in runs)
+            translated[id(paragraph)] = replace(
+                paragraph, text=translated_text, runs=runs
+            )
+        elif paragraph.text.strip():
+            result = next(results)
+            translated[id(paragraph)] = replace(
+                paragraph, text=result.translated_text
+            )
         else:
-            runs = ()
-        translated[id(paragraph)] = replace(
-            paragraph, text=result.translated_text, runs=runs
-        )
+            translated[id(paragraph)] = paragraph
+
     return translated
 
 

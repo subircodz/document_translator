@@ -11,6 +11,15 @@ def test_protect_and_restore_supported_tokens() -> None:
     assert restore(protected.text, protected.tokens) == source
 
 
+def test_numeric_values_are_protected() -> None:
+    source = "Amount 12,500.75 is 18% and reference ID-99."
+    protected = protect(source)
+
+    assert "12,500.75" not in protected.text
+    assert "18%" not in protected.text
+    assert restore(protected.text, protected.tokens) == source
+
+
 def test_unicode_text_survives_protection() -> None:
     source = "Welcome नमस्ते নমস্কার ಕನ್ನಡ తెలుగు தமிழ் മലയാളം"
     protected = protect(source)

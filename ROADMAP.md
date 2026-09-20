@@ -13,12 +13,12 @@
 **Exit criteria:** foundation tests and CI are green; core contracts are stable.
 
 ## Phase 2 — DOCX Engine
-- [ ] Read paragraphs and runs
-- [ ] Read headings
-- [ ] Read tables
-- [ ] Preserve supported document structure
-- [ ] Reconstruct translated DOCX
-- [ ] Round-trip tests
+- [x] Read paragraphs and runs
+- [x] Read headings
+- [x] Read tables
+- [x] Preserve supported document structure
+- [x] Reconstruct translated DOCX
+- [x] Round-trip tests
 
 ## Phase 3 — Translation Engine
 - [ ] Implement a real provider adapter

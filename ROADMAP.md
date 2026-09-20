@@ -31,11 +31,13 @@
 **Current provider:** Google Cloud Translation Basic API (v2), using the six configured Indian target languages.
 
 ## Phase 4 — Validation & Reporting
-- [ ] Detect missing translated content
-- [ ] Verify protected-token restoration
-- [ ] Unicode validation
-- [ ] Translation report
-- [ ] Failure/warning classification
+- [x] Detect missing translated content
+- [x] Verify protected-token restoration
+- [x] Unicode validation
+- [x] Translation validation report model
+- [x] Failure/warning classification
+- [ ] Human-readable document-level report
+- [ ] Validate complete translated DOCX output
 
 ## Phase 5 — Application Interface
 - [ ] CLI

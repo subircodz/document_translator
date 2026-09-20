@@ -1,6 +1,6 @@
 # Document Translator
 
-A Python application that translates English DOCX documents into six major Indian languages:
+A Python application for translating English DOCX documents into six Indian languages:
 
 - Hindi (`hi`)
 - Bengali (`bn`)
@@ -9,23 +9,9 @@ A Python application that translates English DOCX documents into six major India
 - Tamil (`ta`)
 - Malayalam (`ml`)
 
-The application is designed to translate document content while keeping the supported DOCX structure intact and protecting values that should not be translated, such as URLs, email addresses, identifiers, numbers, and placeholders.
+The application translates supported DOCX content through Google Cloud Translation, protects values that should not be translated, rebuilds the document, and validates the generated DOCX before exposing it for download.
 
-## What the application does
-
-The current application supports:
-
-1. Upload an English `.docx` document.
-2. Select one or more target languages.
-3. Read the document structure.
-4. Protect non-translatable tokens.
-5. Translate the document text through Google Cloud Translation.
-6. Rebuild the translated DOCX.
-7. Validate the generated document against the source structure.
-8. Download the translated DOCX and a validation report.
-9. Track translation progress for each selected language.
-
-Current supported flow:
+## Supported workflow
 
 ```text
 English DOCX
@@ -37,7 +23,7 @@ DOCX reader
 DocumentModel
     |
     v
-Protect URLs / emails / IDs / numbers / placeholders
+Protect URLs / emails / IDs / numbers
     |
     v
 TranslationService
@@ -57,9 +43,9 @@ Translated DocumentModel
 Translated DOCX + validation report
 ```
 
-## Supported document content
+## Supported DOCX content
 
-The current DOCX engine supports:
+The current document model supports:
 
 - paragraphs
 - headings and paragraph styles
@@ -70,43 +56,30 @@ The current DOCX engine supports:
 - document order preservation for supported paragraphs and tables
 - Unicode text, including the six target Indian scripts
 
-The application does **not** currently guarantee preservation of every feature supported by Microsoft Word. In particular, advanced layout/features such as images, headers/footers, hyperlinks, tracked changes, comments, embedded objects, and arbitrary section/page properties are outside the current document model.
+The application does **not** guarantee preservation of every Microsoft Word feature. Images, headers/footers, hyperlinks, tracked changes, comments, embedded objects, and arbitrary section/page properties are outside the current document model.
 
 ## Requirements
 
-- Python 3.11 or newer
-- A Google Cloud account with Cloud Translation enabled
-- A Google Cloud Translation API key
-- A DOCX input file
+- Python 3.11+
+- Google Cloud account
+- Cloud Translation API enabled
+- Google Cloud Translation API key
+- DOCX input
 
-The project currently uses Google Cloud Translation Basic API v2 as its translation provider.
+The current provider is Google Cloud Translation Basic API v2.
 
 ## Installation
-
-Clone the repository and enter the project directory:
 
 ```bash
 git clone https://github.com/subircodz/document_translator.git
 cd document_translator
-```
-
-Create and activate a virtual environment:
-
-```bash
 python3 -m venv .venv
 source .venv/bin/activate
-```
-
-Install the application with development dependencies:
-
-```bash
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
 ## Configure Google Cloud Translation
-
-Set the API key as an environment variable.
 
 Linux/macOS:
 
@@ -120,60 +93,119 @@ Windows PowerShell:
 $env:GOOGLE_TRANSLATE_API_KEY="your-api-key"
 ```
 
-Do **not** put the API key in source code, commit it to Git, or place it in the README.
+Never commit the API key.
 
-## Run the web application
+## Run locally
 
-Start the FastAPI application:
+For development:
 
 ```bash
 uvicorn document_translator.web.app:app --reload
 ```
 
-The application will normally be available at:
+Open:
 
 ```text
 http://127.0.0.1:8000
 ```
 
-Open that address in a browser.
+For a controlled production deployment, do **not** use `--reload`:
 
-### Using the web interface
+```bash
+uvicorn document_translator.web.app:app --host 0.0.0.0 --port 8000
+```
 
-1. Open the application in your browser.
-2. Select an English `.docx` file.
+Put the service behind HTTPS and a network boundary/reverse proxy when it is reachable by other users.
+
+## Production web authentication
+
+The application supports HTTP Basic authentication. For a production deployment, configure both variables:
+
+```bash
+export DOCUMENT_TRANSLATOR_WEB_USERNAME="translator"
+export DOCUMENT_TRANSLATOR_WEB_PASSWORD="use-a-long-random-password"
+```
+
+If one is set without the other, application configuration fails.
+
+The `/health` endpoint remains unauthenticated so a load balancer or process supervisor can check service health.
+
+FastAPI's HTTP Basic support is based on the standard Authorization header and browser authentication prompt. citeturn0search0
+
+## Production resource controls
+
+The web service has these configurable controls:
+
+| Variable | Default | Purpose |
+|---|---:|---|
+| `GOOGLE_TRANSLATE_API_KEY` | required | Google Translation API key |
+| `DOCUMENT_TRANSLATOR_MAX_UPLOAD_BYTES` | `10485760` | Maximum upload: 10 MiB |
+| `DOCUMENT_TRANSLATOR_MAX_ARCHIVE_UNCOMPRESSED_BYTES` | `104857600` | Maximum expanded DOCX archive: 100 MiB |
+| `DOCUMENT_TRANSLATOR_JOB_TTL_SECONDS` | `3600` | Completed/failed job retention |
+| `DOCUMENT_TRANSLATOR_MAX_CONCURRENT_JOBS` | `2` | Maximum queued/running jobs |
+| `DOCUMENT_TRANSLATOR_RATE_LIMIT_REQUESTS` | `120` | Requests allowed per client per window |
+| `DOCUMENT_TRANSLATOR_RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit window |
+| `DOCUMENT_TRANSLATOR_WEB_USERNAME` | unset | Web username |
+| `DOCUMENT_TRANSLATOR_WEB_PASSWORD` | unset | Web password |
+
+Example production configuration:
+
+```bash
+export GOOGLE_TRANSLATE_API_KEY="your-api-key"
+export DOCUMENT_TRANSLATOR_WEB_USERNAME="translator"
+export DOCUMENT_TRANSLATOR_WEB_PASSWORD="use-a-long-random-password"
+export DOCUMENT_TRANSLATOR_MAX_UPLOAD_BYTES="10485760"
+export DOCUMENT_TRANSLATOR_MAX_ARCHIVE_UNCOMPRESSED_BYTES="104857600"
+export DOCUMENT_TRANSLATOR_JOB_TTL_SECONDS="3600"
+export DOCUMENT_TRANSLATOR_MAX_CONCURRENT_JOBS="2"
+export DOCUMENT_TRANSLATOR_RATE_LIMIT_REQUESTS="120"
+export DOCUMENT_TRANSLATOR_RATE_LIMIT_WINDOW_SECONDS="60"
+```
+
+The application also validates the DOCX ZIP archive before parsing it and rejects malformed, corrupt, over-large, or excessively populated archives.
+
+## Using the web interface
+
+1. Open the application.
+2. Select an English `.docx`.
 3. Select one or more target languages.
 4. Click **Start translation**.
-5. The application creates a translation job.
-6. The status page shows progress.
-7. When processing finishes, download the translated DOCX.
-8. Download the validation report if you want to inspect structural and translation checks.
+5. Wait for the status page to finish.
+6. Download the translated DOCX.
+7. Download the validation report.
 
-You can translate the same source document into multiple languages in one job.
+Multiple target languages can be processed in one job.
 
-## Command-line usage
+## CLI
 
-The project also provides a CLI entry point:
-
-```bash
-document-translator INPUT.docx --target hi
-```
-
-Example:
+Translate one target language:
 
 ```bash
-document-translator report.docx --target ta
+document-translator report.docx --target hi
 ```
 
-Specify the output path explicitly:
+Specify an output:
 
 ```bash
 document-translator report.docx --target ta --output report.tamil.docx
 ```
 
-The CLI currently accepts one target language per invocation.
+The CLI now validates the generated DOCX and creates a report automatically:
 
-Supported target codes:
+```text
+report.tamil.docx
+report.tamil.report.txt
+```
+
+Specify a custom report:
+
+```bash
+document-translator report.docx --target ta --output report.tamil.docx --report validation.txt
+```
+
+The CLI exits with a failure when document validation reports a failure.
+
+## Target languages
 
 | Language | Code |
 |---|---|
@@ -184,37 +216,11 @@ Supported target codes:
 | Tamil | `ta` |
 | Malayalam | `ml` |
 
-If `--output` is omitted, the CLI creates a name based on the input and target language, for example:
-
-```text
-report.ta.docx
-```
-
-## Environment configuration
-
-The web application supports these environment variables:
-
-| Variable | Default | Purpose |
-|---|---:|---|
-| `GOOGLE_TRANSLATE_API_KEY` | required | Google Cloud Translation API key |
-| `DOCUMENT_TRANSLATOR_MAX_UPLOAD_BYTES` | `10485760` | Maximum uploaded file size: 10 MiB |
-| `DOCUMENT_TRANSLATOR_MAX_ARCHIVE_UNCOMPRESSED_BYTES` | `104857600` | Maximum total uncompressed DOCX ZIP size: 100 MiB |
-| `DOCUMENT_TRANSLATOR_JOB_TTL_SECONDS` | `3600` | Lifetime of completed/failed jobs: 1 hour |
-
-Example:
-
-```bash
-export GOOGLE_TRANSLATE_API_KEY="your-api-key"
-export DOCUMENT_TRANSLATOR_MAX_UPLOAD_BYTES="10485760"
-export DOCUMENT_TRANSLATOR_MAX_ARCHIVE_UNCOMPRESSED_BYTES="104857600"
-export DOCUMENT_TRANSLATOR_JOB_TTL_SECONDS="3600"
-```
-
 ## Translation protection
 
-Before text is sent to the translation provider, the application detects and protects values that should normally remain unchanged.
+Before text is sent to Google Cloud Translation, supported non-translatable values are protected.
 
-Examples include:
+Examples:
 
 ```text
 https://example.com/orders/123
@@ -225,13 +231,11 @@ ORD-ABC-12345
 __CUSTOM_PLACEHOLDER__
 ```
 
-These values are replaced by internal placeholders during translation and restored afterward.
-
-The validation layer then checks that protected values were not lost and that internal placeholders did not leak into the final document.
+The values are restored after translation and the validation layer checks for missing protected values and leaked internal placeholders.
 
 ## Validation
 
-Every web translation is validated after the output DOCX is written and read back.
+Every web translation is written to DOCX, read back, and validated before its download link is exposed.
 
 Validation checks include:
 
@@ -246,32 +250,27 @@ Validation checks include:
 - table row/cell/paragraph structure
 - paragraph-level translation validation
 
-The web application makes the validation report available as a text file next to the translated document.
-
-A validation result can be:
+Results are:
 
 - `PASS`
 - `WARNING`
 - `FAILURE`
 
-A warning does not automatically mean the document is unusable. It means the validator found something that should be reviewed.
+A warning requires review but is not automatically a failed document.
 
 ## API endpoints
 
-The FastAPI application currently exposes:
-
 | Method | Endpoint | Purpose |
 |---|---|---|
+| `GET` | `/health` | Health check |
 | `GET` | `/` | Web upload page |
-| `POST` | `/translate` | Upload and start a translation job |
-| `GET` | `/jobs/{job_id}` | Human-readable job status page |
-| `GET` | `/api/translations/{job_id}` | Job status as JSON |
-| `GET` | `/api/translations/{job_id}/files/{target}` | Download translated DOCX |
-| `GET` | `/api/translations/{job_id}/reports/{target}` | Download validation report |
+| `POST` | `/translate` | Upload/start job |
+| `GET` | `/jobs/{job_id}` | Human-readable status |
+| `GET` | `/api/translations/{job_id}` | JSON status |
+| `GET` | `/api/translations/{job_id}/files/{target}` | Translated DOCX |
+| `GET` | `/api/translations/{job_id}/reports/{target}` | Validation report |
 
-## Application architecture
-
-The project deliberately separates document processing from the translation provider.
+## Architecture
 
 ```text
 Web / CLI
@@ -290,67 +289,51 @@ Document translation orchestration
                        +--> Google Cloud adapter
 ```
 
-This allows another translation provider to be added without rewriting the DOCX processing layer.
+The translation provider is isolated behind a provider contract so another provider can be added without rewriting the document layer.
 
-## Running tests and checks
+## Operational model
 
-Install development dependencies:
+Version 0.5.0 is production-ready for a **controlled single-instance deployment**.
+
+The web job store is intentionally process-local and generated files are temporary. Therefore:
+
+- run one application instance
+- do not use multiple unsynchronized FastAPI workers
+- put the service behind HTTPS and a trusted network boundary
+- configure web authentication
+- keep the Google API key in a secret store/environment
+- monitor disk space and process health
+- use `/health` for service checks
+
+This release is **not a distributed multi-instance service**. A future distributed deployment would require persistent job storage, durable object storage, a worker queue, shared job state, and coordinated rate limiting.
+
+## Testing
 
 ```bash
 python -m pip install -e ".[dev]"
-```
-
-Run the test suite:
-
-```bash
-pytest
-```
-
-Run Ruff:
-
-```bash
 ruff check .
+pytest
+python -m build
 ```
 
-The GitHub Actions CI matrix tests Python 3.11, 3.12, and 3.13.
+GitHub Actions tests Python 3.11, 3.12, and 3.13, runs Ruff and pytest, builds distributions, and verifies that the built wheel can be installed and exposes the CLI.
 
-Dependency security auditing is also configured through GitHub Actions, and Dependabot is configured for Python and GitHub Actions dependencies.
+## Release
 
-## Release builds
-
-Release builds are triggered by a Git tag matching:
+Current release version:
 
 ```text
-v*
+0.5.0
 ```
 
-For example:
+Create a release tag only after the main CI workflow is green:
 
 ```bash
-git tag v0.4.0
-git push origin v0.4.0
+git tag v0.5.0
+git push origin v0.5.0
 ```
 
-The release workflow builds the Python source distribution and wheel and stores them as GitHub Actions artifacts.
-
-The release workflow does not publish to PyPI automatically.
-
-## Production notes
-
-The current web application is suitable as a controlled internal application or development deployment, but it is **not yet a fully distributed production service**.
-
-Important current limitations:
-
-- job state is process-local
-- uploaded/generated files are stored in temporary directories
-- there is no user authentication
-- there is no persistent job database
-- there is no distributed task queue
-- there is no rate limiting
-- a single FastAPI process owns the in-memory job store
-- advanced DOCX features are not preserved by the current document model
-
-For a larger deployment, the next engineering steps would include persistent job storage, a worker/task queue, authentication/authorization, rate limiting, centralized logging, object storage, and stronger deployment controls.
+The release workflow independently runs Ruff, pytest, builds the wheel/source distribution, and verifies the built wheel before uploading the distributions as GitHub Actions artifacts. It does not publish automatically to PyPI.
 
 ## Project structure
 
@@ -362,23 +345,10 @@ document_translator/
 │   ├── logging.py
 │   ├── models.py
 │   ├── document/
-│   │   ├── model.py
-│   │   ├── reader.py
-│   │   └── writer.py
 │   ├── protection/
-│   │   └── tokens.py
 │   ├── translation/
-│   │   ├── document.py
-│   │   ├── errors.py
-│   │   ├── google_cloud.py
-│   │   ├── provider.py
-│   │   └── service.py
 │   ├── validation/
-│   │   ├── report.py
-│   │   ├── renderer.py
-│   │   └── validator.py
 │   └── web/
-│       └── app.py
 ├── tests/
 ├── .github/workflows/
 ├── ROADMAP.md
@@ -387,15 +357,6 @@ document_translator/
 └── README.md
 ```
 
-## Project status
-
-The implementation has completed the planned foundation, DOCX engine, translation engine, validation/reporting, CLI, web application, and current production-hardening work.
-
-See:
-
-- `ROADMAP.md` for the phase-by-phase development plan.
-- `TODO.md` for the active engineering checklist.
-
 ## License
 
-No open-source license has been declared yet. Until a license is added, treat the repository as private project code and do not redistribute it.
+No open-source license has been declared. Until a license is added, treat the repository as private project code and do not redistribute it.

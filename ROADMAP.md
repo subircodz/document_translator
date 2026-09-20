@@ -60,7 +60,7 @@
 - [x] Configuration and secrets handling
 - [x] Structured logging
 - [x] File/type/size limits
-- [ ] Security review
-- [ ] Dependency review
-- [ ] Performance tests
-- [ ] Release workflow
+- [x] Security review
+- [x] Dependency review
+- [x] Performance tests
+- [x] Release workflow

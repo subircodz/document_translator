@@ -21,12 +21,14 @@
 - [x] Round-trip tests
 
 ## Phase 3 — Translation Engine
-- [ ] Implement a real provider adapter
-- [ ] Batch/chunk translation safely
-- [ ] Retry transient failures
-- [ ] Protect and restore non-translatable tokens
-- [ ] Translation error model
-- [ ] Provider integration tests with mocks
+- [x] Implement a real provider adapter
+- [x] Batch/chunk translation safely
+- [x] Retry transient failures
+- [x] Protect and restore non-translatable tokens
+- [x] Translation error model
+- [x] Provider integration tests with mocks
+
+**Current provider:** Google Cloud Translation Basic API (v2), using the six configured Indian target languages.
 
 ## Phase 4 — Validation & Reporting
 - [ ] Detect missing translated content

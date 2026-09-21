@@ -37,6 +37,12 @@ def test_validation_passes_for_valid_translation_and_restored_tokens() -> None:
     assert report.issues == ()
 
 
+def test_validation_passes_for_empty_source_paragraph() -> None:
+    report = validate_translation(result("", ""))
+    assert report.status is ValidationStatus.PASS
+    assert report.issues == ()
+
+
 def test_validation_detects_missing_translation() -> None:
     report = validate_translation(result("Hello", ""))
     assert report.status is ValidationStatus.FAILURE

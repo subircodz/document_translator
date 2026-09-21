@@ -23,6 +23,16 @@ def validate_translation(result: TranslationResult) -> TranslationValidationRepo
     """Validate translated content, protected tokens, and Unicode integrity."""
     issues: list[ValidationIssue] = []
 
+    if not result.source_text.strip():
+        return TranslationValidationReport(
+            source_language=result.source_language,
+            target_language=result.target_language,
+            source_text=result.source_text,
+            translated_text=result.translated_text,
+            status=ValidationStatus.PASS,
+            issues=(),
+        )
+
     if not result.translated_text.strip():
         issues.append(
             ValidationIssue(

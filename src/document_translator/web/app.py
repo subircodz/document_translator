@@ -427,17 +427,32 @@ li{{margin:12px 0}}</style></head><body><h1>Translation status</h1>
 
 def _html_output(job: TranslationJob, target: Language) -> str:
     output = job.outputs.get(target.value)
+    language_names = {
+        "hi": "Hindi",
+        "bn": "Bengali",
+        "kn": "Kannada",
+        "te": "Telugu",
+        "ta": "Tamil",
+        "ml": "Malayalam",
+    }
+    name = language_names.get(target.value, target.name.title())
     if output is None or output.error is not None:
         error = (
             html.escape(output.error)
             if output and output.error
-            else "queued"
+            else "Waiting to start"
         )
-        return f"<li>{target.value}: {error}</li>"
+        return (
+            f'<article class="output"><div class="output-head"><span class="lang">'
+            f'{name}</span><span class="pill">Pending</span></div>'
+            f'<div class="error">{error}</div></article>'
+        )
     return (
-        f'<li>{target.value}: <a href="/api/translations/{job.job_id}/files/'
-        f'{target.value}">DOCX</a> · <a href="/api/translations/{job.job_id}/reports/'
-        f'{target.value}">report</a></li>'
+        f'<article class="output"><div class="output-head"><span class="lang">'
+        f'{name}</span><span class="pill">Ready</span></div>'
+        f'<div class="links"><a href="/api/translations/{job.job_id}/files/'
+        f'{target.value}">Download DOCX</a><a class="secondary" href="/api/translations/'
+        f'{job.job_id}/reports/{target.value}">Validation report</a></div></article>'
     )
 
 

@@ -340,7 +340,7 @@ footer{{text-align:center;color:#6e819b;font-size:12px;margin-top:20px}}@media(m
 <label class="drop" id="drop"><input id="file" type="file" name="file" accept=".docx" required><div class="icon">↑</div><b>Drop your DOCX here</b><small>or click to choose a file · maximum 10 MB</small><div id="file-name"></div></label>
 <div class="head"><h2>Target languages</h2><span id="count">0 selected</span></div><div class="languages">{languages}</div>
 <div class="actions"><span class="hint">Select one or more languages. Your translation starts as a background job.</span><button id="submit" type="submit" disabled>Start translation →</button></div>
-</form></section><footer>URLs, emails and other protected identifiers are preserved during translation.</footer></main>
+</form></section><footer>URLs, emails and other protected identifiers are preserved during translation.<br><span style="display:inline-block;margin-top:10px;color:#53677f">© 2026 Subir Sutradhar · Document Translator</span></footer></main>
 <script>
 const f=document.getElementById("file"),d=document.getElementById("drop"),n=document.getElementById("file-name"),c=document.getElementById("count"),b=document.getElementById("submit");
 function sync(){{const x=document.querySelectorAll('input[name="targets"]:checked').length;c.textContent=x+" selected";b.disabled=!f.files.length||!x}}

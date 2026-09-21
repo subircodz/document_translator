@@ -305,22 +305,49 @@ def create_app(provider_factory=None, settings: Settings | None = None) -> FastA
 
     @app.get("/", response_class=HTMLResponse)
     def home() -> str:
+        names = {"hi": "Hindi", "bn": "Bengali", "kn": "Kannada", "te": "Telugu", "ta": "Tamil", "ml": "Malayalam"}
         languages = "".join(
-            f'<label><input type="checkbox" name="targets" value="{lang.value}"> '
-            f"{lang.name.title()}</label>"
+            f'<label class="lang"><input type="checkbox" name="targets" value="{lang.value}">'
+            f'<span class="code">{lang.value.upper()}</span><span><b>{names.get(lang.value, lang.name.title())}</b>'
+            f'<small>{lang.value.upper()} translation</small></span><i>✓</i></label>'
             for lang in sorted(TARGET_LANGUAGES, key=lambda item: item.value)
         )
         return f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Document Translator</title>
-<style>body{{font-family:system-ui;max-width:760px;margin:40px auto;padding:0 20px}}
-label{{display:block;margin:8px 0}}button{{margin-top:18px;padding:10px 18px}}
-.hint{{color:#555}}</style></head><body><h1>Document Translator</h1>
-<p class="hint">Translate an English DOCX into one or more Indian languages.</p>
-<form action="/translate" method="post" enctype="multipart/form-data">
-<p><input type="file" name="file" accept=".docx" required></p>
-<fieldset><legend>Target languages</legend>{languages}</fieldset>
-<button type="submit">Start translation</button></form></body></html>"""
-
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Document Translator</title>
+<style>
+:root{{--bg:#07111f;--card:#0e1d32;--text:#f6f8fb;--muted:#9caec5;--line:#ffffff18;--cyan:#69e6f7;--violet:#9b8cff}}
+*{{box-sizing:border-box}}body{{margin:0;min-height:100vh;font-family:Inter,system-ui,sans-serif;color:var(--text);background:radial-gradient(circle at 15% 0,#163d58 0,transparent 32%),radial-gradient(circle at 90% 10%,#292253 0,transparent 34%),var(--bg)}}
+.shell{{width:min(1000px,calc(100% - 32px));margin:auto;padding:32px 0 60px}}.nav{{display:flex;justify-content:space-between;align-items:center;margin-bottom:60px}}
+.brand{{display:flex;gap:11px;align-items:center;font-weight:800;letter-spacing:-.02em}}.logo{{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--cyan),var(--violet));color:#06101d;font-weight:900}}
+.badge{{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:7px 11px;border-radius:99px;background:#ffffff08}}
+.hero{{text-align:center;max-width:760px;margin:auto auto 34px}}.eyebrow{{color:var(--cyan);font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}}
+h1{{font-size:clamp(42px,7vw,72px);line-height:1;letter-spacing:-.06em;margin:14px 0 18px}}.hero p{{color:var(--muted);font-size:18px;line-height:1.6}}
+.panel{{background:#0e1d32dd;border:1px solid var(--line);border-radius:28px;padding:26px;box-shadow:0 28px 80px #0007;backdrop-filter:blur(16px)}}
+.drop{{display:block;text-align:center;padding:36px 20px;border:1.5px dashed #69e6f755;border-radius:20px;cursor:pointer;background:#69e6f708;transition:.2s}}
+.drop:hover,.drop.drag{{border-color:var(--cyan);background:#69e6f712}}.drop input{{display:none}}.icon{{font-size:28px;margin-bottom:10px}}.drop b{{display:block;font-size:17px}}.drop small{{display:block;color:var(--muted);margin-top:7px}}#file-name{{color:#62e3a5;font-size:13px;margin-top:12px;min-height:18px}}
+.head{{display:flex;justify-content:space-between;align-items:end;margin:28px 0 13px}}.head h2{{font-size:16px;margin:0}}.head span{{font-size:12px;color:var(--muted)}}
+.languages{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}}.lang{{position:relative;display:flex;align-items:center;gap:11px;padding:14px;border:1px solid var(--line);border-radius:16px;background:#ffffff05;cursor:pointer;transition:.2s}}
+.lang:hover,.lang:has(input:checked){{border-color:#69e6f799;background:#69e6f70d}}.lang input{{position:absolute;opacity:0}}.code{{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#9b8cff18;color:#c9c1ff;font-size:11px;font-weight:900}}
+.lang b{{display:block;font-size:14px}}.lang small{{display:block;color:var(--muted);font-size:10px;margin-top:3px}}.lang i{{margin-left:auto;color:var(--cyan);opacity:0;font-style:normal;font-weight:900}}.lang:has(input:checked) i{{opacity:1}}
+.actions{{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:24px}}.hint{{color:var(--muted);font-size:12px}}button{{border:0;border-radius:14px;padding:14px 22px;font:inherit;font-weight:800;color:#06101d;background:linear-gradient(135deg,var(--cyan),#b3f7ff);cursor:pointer;box-shadow:0 12px 32px #69e6f72b}}button:disabled{{opacity:.45;cursor:not-allowed}}
+footer{{text-align:center;color:#6e819b;font-size:12px;margin-top:20px}}@media(max-width:700px){{.languages{{grid-template-columns:1fr 1fr}}.actions{{flex-direction:column;align-items:stretch}}button{{width:100%}}}}@media(max-width:470px){{.languages{{grid-template-columns:1fr}}.shell{{width:min(100% - 20px,1000px)}}}}
+</style></head><body><main class="shell">
+<header class="nav"><div class="brand"><div class="logo">文</div>Document Translator</div><span class="badge">v0.5.0 · DOCX</span></header>
+<section class="hero"><div class="eyebrow">Structure-aware document translation</div><h1>Translate once.<br><span style="background:linear-gradient(90deg,var(--cyan),#bdb4ff);-webkit-background-clip:text;color:transparent">Speak everywhere.</span></h1>
+<p>Turn an English Word document into Hindi, Bengali, Kannada, Telugu, Tamil or Malayalam while keeping supported structure and formatting intact.</p></section>
+<section class="panel"><form id="form" action="/translate" method="post" enctype="multipart/form-data">
+<label class="drop" id="drop"><input id="file" type="file" name="file" accept=".docx" required><div class="icon">↑</div><b>Drop your DOCX here</b><small>or click to choose a file · maximum 10 MB</small><div id="file-name"></div></label>
+<div class="head"><h2>Target languages</h2><span id="count">0 selected</span></div><div class="languages">{languages}</div>
+<div class="actions"><span class="hint">Select one or more languages. Your translation starts as a background job.</span><button id="submit" type="submit" disabled>Start translation →</button></div>
+</form></section><footer>URLs, emails and other protected identifiers are preserved during translation.</footer></main>
+<script>
+const f=document.getElementById("file"),d=document.getElementById("drop"),n=document.getElementById("file-name"),c=document.getElementById("count"),b=document.getElementById("submit");
+function sync(){{const x=document.querySelectorAll('input[name="targets"]:checked').length;c.textContent=x+" selected";b.disabled=!f.files.length||!x}}
+f.onchange=()=>{{n.textContent=f.files[0]?.name||"";sync()}};["dragenter","dragover"].forEach(x=>d.addEventListener(x,e=>{{e.preventDefault();d.classList.add("drag")}}));["dragleave","drop"].forEach(x=>d.addEventListener(x,e=>{{e.preventDefault();d.classList.remove("drag")}}));
+d.addEventListener("drop",e=>{{if(e.dataTransfer.files.length){{f.files=e.dataTransfer.files;n.textContent=f.files[0].name;sync()}}}});document.querySelectorAll('input[name="targets"]').forEach(x=>x.onchange=sync);
+document.getElementById("form").onsubmit=()=>{{b.disabled=true;b.textContent="Uploading…" }};sync();
+</script></body></html>"""
     @app.post("/translate", response_class=HTMLResponse)
     async def translate_form(
         background_tasks: BackgroundTasks,
@@ -336,13 +363,21 @@ label{{display:block;margin:8px 0}}button{{margin-top:18px;padding:10px 18px}}
         if job is None:
             raise HTTPException(status_code=404, detail="Translation job not found.")
         source_name = html.escape(job.source_name)
-        return f"""<!doctype html><html><head><meta charset="utf-8">
-<title>Translation status</title><meta http-equiv="refresh" content="2">
-<style>body{{font-family:system-ui;max-width:760px;margin:40px auto;padding:0 20px}}
-li{{margin:12px 0}}</style></head><body><h1>Translation status</h1>
-<p>File: {source_name}</p><p>Status: <strong>{job.status}</strong> — {job.progress}%</p>
-<ul>{''.join(_html_output(job, target) for target in job.targets)}</ul></body></html>"""
-
+        return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Translation · {source_name}</title><style>
+:root{{--bg:#07111f;--card:#0e1d32dd;--text:#f5f8fb;--muted:#9caec5;--line:#ffffff18;--cyan:#69e6f7;--green:#61e5a5}}
+*{{box-sizing:border-box}}body{{margin:0;min-height:100vh;font-family:Inter,system-ui,sans-serif;color:var(--text);background:radial-gradient(circle at 20% 0,#173b55 0,transparent 32%),radial-gradient(circle at 90% 20%,#292253 0,transparent 34%),var(--bg)}}.shell{{width:min(900px,calc(100% - 30px));margin:auto;padding:32px 0 60px}}
+.top{{display:flex;justify-content:space-between;align-items:center;margin-bottom:34px}}.brand{{display:flex;align-items:center;gap:10px;font-weight:800}}.logo{{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,var(--cyan),#9d8cff);color:#06101d}}.back{{color:var(--muted);text-decoration:none;font-size:13px}}
+.card{{background:var(--card);border:1px solid var(--line);border-radius:25px;padding:27px;box-shadow:0 28px 80px #0007;backdrop-filter:blur(16px)}}.eyebrow{{color:var(--cyan);font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}}h1{{font-size:clamp(28px,5vw,44px);letter-spacing:-.045em;margin:9px 0}}.meta{{color:var(--muted);font-size:13px}}
+.track{{height:10px;background:#ffffff0d;border-radius:99px;overflow:hidden;margin:27px 0 9px}}.bar{{height:100%;background:linear-gradient(90deg,var(--cyan),#9d8cff);border-radius:99px;transition:width .4s}}.row{{display:flex;justify-content:space-between;color:var(--muted);font-size:13px}}.row strong{{color:var(--text)}}
+.outputs{{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:22px}}.output{{padding:17px;border:1px solid var(--line);border-radius:17px;background:#ffffff04}}.output-head{{display:flex;justify-content:space-between;align-items:center;gap:10px}}.lang{{font-weight:850}}.pill{{font-size:10px;padding:5px 8px;border-radius:99px;color:var(--green);background:#61e5a512}}.links{{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}}.links a{{padding:8px 10px;border-radius:10px;text-decoration:none;background:var(--cyan);color:#06101d;font-size:11px;font-weight:850}}.links a.secondary{{color:var(--text);background:#ffffff0a;border:1px solid var(--line)}}.error{{color:#ff9bab;font-size:12px;margin-top:9px}}.note{{margin-top:18px;padding:12px 14px;border-radius:12px;color:var(--muted);background:#ffffff05;font-size:12px;line-height:1.5}}@media(max-width:620px){{.outputs{{grid-template-columns:1fr}}.card{{padding:20px}}}}
+</style></head><body><main class="shell"><div class="top"><div class="brand"><div class="logo">文</div>Document Translator</div><a class="back" href="/">← Translate another</a></div>
+<section class="card"><div class="eyebrow">Translation job</div><h1>{source_name}</h1><div class="meta">Job {job.job_id[:8]} · <span id="status">{html.escape(job.status.replace("_"," ").title())}</span></div>
+<div class="track"><div class="bar" id="bar" style="width:{job.progress}%"></div></div><div class="row"><span id="state">{html.escape(job.status.replace("_"," ").title())}</span><strong id="pct">{job.progress}%</strong></div>
+<div class="outputs" id="outputs">{''.join(_html_output(job, target) for target in job.targets)}</div><div class="note">This page checks job progress automatically. Completed targets can be downloaded immediately.</div>
+</section></main><script>
+const id="{job.job_id}";async function refresh(){{try{{const r=await fetch("/api/translations/"+id,{{cache:"no-store"}});if(!r.ok)return;const d=await r.json();document.getElementById("bar").style.width=d.progress+"%";document.getElementById("pct").textContent=d.progress+"%";const s=d.status.replaceAll("_"," ");document.getElementById("state").textContent=s[0].toUpperCase()+s.slice(1);document.getElementById("status").textContent=document.getElementById("state").textContent;if(d.status==="completed"||d.status==="completed_with_errors"||d.status==="failed")location.reload()}}catch(e){{}}}}setInterval(refresh,2000);
+</script></body></html>"""
     @app.get("/api/translations/{job_id}")
     def job_status(job_id: str) -> dict[str, object]:
         job = STORE.get(job_id)
